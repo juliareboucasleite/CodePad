@@ -6,6 +6,8 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -14,6 +16,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.geometry.Point2D;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.LineNumberFactory;
@@ -29,6 +32,11 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -46,16 +54,39 @@ public class EditorController {
             "throw", "throws", "transient", "try", "void", "volatile", "while"
     };
 
-    private static final Pattern PATTERN = Pattern.compile(
-            "(?<KEYWORD>\\b(" + String.join("|", KEYWORDS) + ")\\b)"
-                    + "|(?<PAREN>\\(|\\))"
-                    + "|(?<BRACE>\\{|\\})"
-                    + "|(?<BRACKET>\\[|\\])"
-                    + "|(?<SEMICOLON>;)"
-                    + "|(?<STRING>\"([^\"\\\\]|\\\\.)*\")"
-                    + "|(?<COMMENT>//[^\\n]*|/\\*(.|\\R)*?\\*/)"
-                    + "|(?<NUMBER>\\b\\d+(\\.\\d+)?\\b)"
-    );
+    private static final String[] KEYWORDS_JS = new String[]{
+            "break", "case", "catch", "class", "const", "continue", "debugger", "default",
+            "delete", "do", "else", "export", "extends", "finally", "for", "function", "if",
+            "import", "in", "instanceof", "let", "new", "return", "super", "switch", "this",
+            "throw", "try", "typeof", "var", "void", "while", "with", "yield", "await"
+    };
+
+    private static final String[] KEYWORDS_PY = new String[]{
+            "and", "as", "assert", "break", "class", "continue", "def", "del", "elif", "else",
+            "except", "False", "finally", "for", "from", "global", "if", "import", "in", "is",
+            "lambda", "None", "nonlocal", "not", "or", "pass", "raise", "return", "True",
+            "try", "while", "with", "yield"
+    };
+
+    private static final Pattern PATTERN_JAVA = buildPattern(KEYWORDS,
+            "//[^\\n]*|/\\*(.|\\R)*?\\*/",
+            "\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*'");
+    private static final Pattern PATTERN_JS = buildPattern(KEYWORDS_JS,
+            "//[^\\n]*|/\\*(.|\\R)*?\\*/",
+            "\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*'|`([^`\\\\]|\\\\.)*`");
+    private static final Pattern PATTERN_PY = buildPattern(KEYWORDS_PY,
+            "#[^\\n]*",
+            "\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*'");
+
+    private static final String CURSOR = "${cursor}";
+    private static final Map<String, String> SNIPPETS = new LinkedHashMap<>();
+
+    static {
+        SNIPPETS.put("psvm", "public static void main(String[] args) {\n    " + CURSOR + "\n}");
+        SNIPPETS.put("sout", "System.out.println(" + CURSOR + ");");
+        SNIPPETS.put("fori", "for (int i = 0; i < " + CURSOR + "; i++) {\n    \n}");
+        SNIPPETS.put("if", "if (" + CURSOR + ") {\n    \n}");
+    }
 
     @FXML
     private BorderPane root;
@@ -65,6 +96,8 @@ public class EditorController {
     private Label lblStatus;
     @FXML
     private Label lblStats;
+    @FXML
+    private Button btnRun;
 
     @FXML
     private MenuItem miNewTab;
@@ -114,6 +147,7 @@ public class EditorController {
     private TextField tfFind;
     private TextField tfReplace;
     private Label lblFindStatus;
+    private ContextMenu suggestMenu;
 
     private static class TabData {
         CodeArea area;
@@ -122,6 +156,8 @@ public class EditorController {
         boolean loading;
         Subscription highlightSubscription;
         boolean codeMode;
+        String language;
+        Pattern pattern;
     }
 
     @FXML
@@ -162,12 +198,15 @@ public class EditorController {
     }
 
     private void createNewTab() {
-        String title = "Sem Título " + untitledCount++;
+        String title = "Sem Titulo " + untitledCount++;
         Tab tab = new Tab(title);
         TabData data = buildCodeTab(tab, "");
         tab.setUserData(data);
         tabPane.getTabs().add(tab);
         tabPane.getSelectionModel().select(tab);
+        if (miModeText != null && miModeText.isSelected()) {
+            setMode(data, false);
+        }
         updateStats();
     }
 
@@ -183,6 +222,8 @@ public class EditorController {
         data.loading = false;
         data.dirty = false;
         data.codeMode = true;
+        data.language = "java";
+        data.pattern = PATTERN_JAVA;
 
         attachHighlight(data);
 
@@ -195,6 +236,7 @@ public class EditorController {
 
         area.caretPositionProperty().addListener((obs, oldPos, newPos) -> updateCaretStatus(area));
 
+        setupEditorInteractions(data);
         VirtualizedScrollPane<CodeArea> scroller = new VirtualizedScrollPane<>(area);
         tab.setContent(scroller);
         tab.setOnCloseRequest(event -> {
@@ -203,22 +245,28 @@ public class EditorController {
             }
         });
 
-        applyHighlight(area);
+        applyHighlight(data);
         return data;
     }
 
-    private void applyHighlight(CodeArea area) {
-        StyleSpans<Collection<String>> spans = computeHighlighting(area.getText());
-        area.setStyleSpans(0, spans);
+    private void applyHighlight(TabData data) {
+        if (data == null || data.pattern == null) {
+            return;
+        }
+        StyleSpans<Collection<String>> spans = computeHighlighting(data.area.getText(), data.pattern);
+        data.area.setStyleSpans(0, spans);
     }
 
-    private StyleSpans<Collection<String>> computeHighlighting(String text) {
-        Matcher matcher = PATTERN.matcher(text);
+    private StyleSpans<Collection<String>> computeHighlighting(String text, Pattern pattern) {
+        Matcher matcher = pattern.matcher(text);
         int lastKwEnd = 0;
         StyleSpansBuilder<Collection<String>> spansBuilder = new StyleSpansBuilder<>();
         while (matcher.find()) {
             String styleClass =
                     matcher.group("KEYWORD") != null ? "keyword" :
+                            matcher.group("TYPE") != null ? "type" :
+                                    matcher.group("FUNCTION") != null ? "function" :
+                                            matcher.group("IDENT") != null ? "identifier" :
                             matcher.group("PAREN") != null ? "paren" :
                                     matcher.group("BRACE") != null ? "brace" :
                                             matcher.group("BRACKET") != null ? "bracket" :
@@ -292,6 +340,7 @@ public class EditorController {
         } else {
             miModeText.setSelected(true);
         }
+        updateRunButtonState(data);
     }
 
     private void attachHighlight(TabData data) {
@@ -300,7 +349,7 @@ public class EditorController {
         }
         data.highlightSubscription = data.area.multiPlainChanges()
                 .successionEnds(Duration.ofMillis(200))
-                .subscribe(ignore -> applyHighlight(data.area));
+                .subscribe(ignore -> applyHighlight(data));
     }
 
     private void detachHighlight(TabData data) {
@@ -322,11 +371,155 @@ public class EditorController {
         data.area.getStyleClass().add(codeMode ? "code-area" : "text-area");
         if (codeMode) {
             attachHighlight(data);
-            applyHighlight(data.area);
+            applyHighlight(data);
         } else {
             detachHighlight(data);
             clearStyles(data.area);
         }
+        updateRunButtonState(data);
+    }
+
+    private void updateRunButtonState(TabData data) {
+        if (btnRun == null) {
+            return;
+        }
+        btnRun.setDisable(data == null || !data.codeMode);
+    }
+
+    private void setupEditorInteractions(TabData data) {
+        data.area.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.isControlDown() && event.getCode() == KeyCode.SPACE) {
+                showSuggestions(data);
+                event.consume();
+                return;
+            }
+            if (event.getCode() == KeyCode.TAB) {
+                if (tryExpandSnippet(data)) {
+                    event.consume();
+                }
+            }
+        });
+
+        data.area.addEventHandler(KeyEvent.KEY_TYPED, event -> {
+            if (suggestMenu != null && suggestMenu.isShowing()) {
+                suggestMenu.hide();
+            }
+        });
+    }
+
+    private boolean tryExpandSnippet(TabData data) {
+        String word = getCurrentWord(data.area);
+        if (word == null) {
+            return false;
+        }
+        String snippet = SNIPPETS.get(word);
+        if (snippet == null) {
+            return false;
+        }
+        replaceCurrentWordWithSnippet(data.area, snippet);
+        return true;
+    }
+
+    private void replaceCurrentWordWithSnippet(CodeArea area, String snippet) {
+        int[] range = getCurrentWordRange(area);
+        if (range == null) {
+            return;
+        }
+        int start = range[0];
+        int end = range[1];
+        int cursorIndex = snippet.indexOf(CURSOR);
+        String cleanSnippet = snippet.replace(CURSOR, "");
+        area.replaceText(start, end, cleanSnippet);
+        if (cursorIndex >= 0) {
+            area.moveTo(start + cursorIndex);
+        } else {
+            area.moveTo(start + cleanSnippet.length());
+        }
+    }
+
+    private void showSuggestions(TabData data) {
+        if (suggestMenu == null) {
+            suggestMenu = new ContextMenu();
+        }
+        suggestMenu.getItems().clear();
+        String prefix = getCurrentWord(data.area);
+        for (String suggestion : buildSuggestions(data, prefix)) {
+            MenuItem item = new MenuItem(suggestion);
+            item.setOnAction(e -> replaceCurrentWord(data.area, suggestion));
+            suggestMenu.getItems().add(item);
+        }
+        if (suggestMenu.getItems().isEmpty()) {
+            return;
+        }
+        data.area.getCaretBounds().ifPresentOrElse(bounds -> {
+            Point2D point = data.area.localToScreen(bounds.getMaxX(), bounds.getMaxY());
+            suggestMenu.show(data.area, point.getX(), point.getY());
+        }, () -> suggestMenu.show(data.area, 0, 0));
+    }
+
+    private Set<String> buildSuggestions(TabData data, String prefix) {
+        Set<String> result = new LinkedHashSet<>();
+        String norm = prefix == null ? "" : prefix.trim();
+        if (data.codeMode) {
+            for (String key : getKeywordsForLanguage(data.language)) {
+                if (norm.isEmpty() || key.startsWith(norm)) {
+                    result.add(key);
+                }
+            }
+        }
+        for (String key : SNIPPETS.keySet()) {
+            if (norm.isEmpty() || key.startsWith(norm)) {
+                result.add(key);
+            }
+        }
+        String text = data.area.getText();
+        Matcher matcher = Pattern.compile("\\b[a-zA-Z_][\\w]*\\b").matcher(text);
+        while (matcher.find()) {
+            String word = matcher.group();
+            if (norm.isEmpty() || word.startsWith(norm)) {
+                result.add(word);
+            }
+            if (result.size() > 80) {
+                break;
+            }
+        }
+        return result;
+    }
+
+    private String getCurrentWord(CodeArea area) {
+        int[] range = getCurrentWordRange(area);
+        if (range == null) {
+            return null;
+        }
+        return area.getText(range[0], range[1]);
+    }
+
+    private int[] getCurrentWordRange(CodeArea area) {
+        int caret = area.getCaretPosition();
+        String text = area.getText();
+        if (text.isEmpty() || caret < 0) {
+            return null;
+        }
+        int start = caret;
+        int end = caret;
+        while (start > 0 && Character.isJavaIdentifierPart(text.charAt(start - 1))) {
+            start--;
+        }
+        while (end < text.length() && Character.isJavaIdentifierPart(text.charAt(end))) {
+            end++;
+        }
+        if (start == end) {
+            return null;
+        }
+        return new int[]{start, end};
+    }
+
+    private void replaceCurrentWord(CodeArea area, String replacement) {
+        int[] range = getCurrentWordRange(area);
+        if (range == null) {
+            return;
+        }
+        area.replaceText(range[0], range[1], replacement);
     }
 
     private void markDirty(Tab tab, boolean dirty) {
@@ -367,7 +560,7 @@ public class EditorController {
 
     private void setCurrentFile(TabData data, Tab tab, Path path) {
         data.filePath = path;
-        String name = path == null ? "Sem Título" : path.getFileName().toString();
+        String name = path == null ? "Sem Titulo" : path.getFileName().toString();
         tab.setText(name + (data.dirty ? "*" : ""));
     }
 
@@ -389,11 +582,23 @@ public class EditorController {
             Tab tab = new Tab(file.getName());
             TabData data = buildCodeTab(tab, content);
             data.filePath = file.toPath();
+            String language = detectLanguage(file.toPath());
+            if ("text".equals(language)) {
+                setMode(data, false);
+            } else {
+                data.language = language;
+                data.pattern = patternForLanguage(language);
+                applyHighlight(data);
+            }
             tab.setUserData(data);
             tabPane.getTabs().add(tab);
             tabPane.getSelectionModel().select(tab);
             markDirty(tab, false);
+            if (miModeText != null && miModeText.isSelected()) {
+                setMode(data, false);
+            }
             updateStatus("Arquivo aberto: " + file.getName());
+            updateStats();
         } catch (IOException ex) {
             showError("Não foi possível abrir o arquivo.", ex.getMessage());
         }
@@ -430,6 +635,12 @@ public class EditorController {
             data.filePath = path;
             markDirty(tab, false);
             setCurrentFile(data, tab, path);
+            String language = detectLanguage(path);
+            if (data.codeMode && !"text".equals(language)) {
+                data.language = language;
+                data.pattern = patternForLanguage(language);
+                applyHighlight(data);
+            }
             updateStatus("Arquivo salvo: " + path.getFileName());
             return true;
         } catch (IOException ex) {
@@ -534,6 +745,10 @@ public class EditorController {
     public void handleModeCode() {
         TabData data = getCurrentData();
         if (data != null) {
+            if (data.language == null) {
+                data.language = "java";
+                data.pattern = PATTERN_JAVA;
+            }
             setMode(data, true);
         }
     }
@@ -686,5 +901,66 @@ public class EditorController {
         alert.setHeaderText(header);
         alert.setContentText(content);
         alert.showAndWait();
+    }
+
+    private static Pattern buildPattern(String[] keywords, String commentRegex, String stringRegex) {
+        String keywordPattern = "\\b(" + String.join("|", keywords) + ")\\b";
+        String typePattern = "\\b[A-Z][\\w]*\\b";
+        String functionPattern = "\\b[a-zA-Z_][\\w]*(?=\\s*\\()";
+        String identPattern = "\\b[a-zA-Z_][\\w]*\\b";
+        String numberPattern = "\\b\\d+(\\.\\d+)?\\b";
+        return Pattern.compile(
+                "(?<KEYWORD>" + keywordPattern + ")"
+                        + "|(?<TYPE>" + typePattern + ")"
+                        + "|(?<FUNCTION>" + functionPattern + ")"
+                        + "|(?<IDENT>" + identPattern + ")"
+                        + "|(?<PAREN>\\(|\\))"
+                        + "|(?<BRACE>\\{|\\})"
+                        + "|(?<BRACKET>\\[|\\])"
+                        + "|(?<SEMICOLON>;)"
+                        + "|(?<STRING>" + stringRegex + ")"
+                        + "|(?<COMMENT>" + commentRegex + ")"
+                        + "|(?<NUMBER>" + numberPattern + ")"
+        );
+    }
+
+    private static String detectLanguage(Path path) {
+        String name = path.getFileName().toString().toLowerCase();
+        if (name.endsWith(".java")) {
+            return "java";
+        }
+        if (name.endsWith(".js") || name.endsWith(".jsx") || name.endsWith(".ts")) {
+            return "js";
+        }
+        if (name.endsWith(".py")) {
+            return "py";
+        }
+        if (name.endsWith(".html") || name.endsWith(".css")) {
+            return "text";
+        }
+        if (name.endsWith(".txt") || name.endsWith(".md")) {
+            return "text";
+        }
+        return "java";
+    }
+
+    private static Pattern patternForLanguage(String language) {
+        if ("js".equals(language)) {
+            return PATTERN_JS;
+        }
+        if ("py".equals(language)) {
+            return PATTERN_PY;
+        }
+        return PATTERN_JAVA;
+    }
+
+    private static String[] getKeywordsForLanguage(String language) {
+        if ("js".equals(language)) {
+            return KEYWORDS_JS;
+        }
+        if ("py".equals(language)) {
+            return KEYWORDS_PY;
+        }
+        return KEYWORDS;
     }
 }
