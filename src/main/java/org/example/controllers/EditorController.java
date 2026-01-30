@@ -1,6 +1,8 @@
 package org.example.controllers;
 
 import javafx.application.Platform;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.fxml.FXML;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -56,7 +58,9 @@ public class EditorController {
     private static final String THEME_DARK = "/org/example/editor-dark.css";
     private static final String UPDATE_API = "https://api.github.com/repos/juliareboucasleite/PromoPing-CodePad/releases/latest";
     private static final String RELEASES_URL = "https://github.com/juliareboucasleite/PromoPing-CodePad/releases";
+    private static final String RELEASE_ASSET_NAME = "PromoPingCodePad-Setup.exe";
     private static final String DRAFTS_FILE = "drafts.dat";
+    private static final int AUTO_SAVE_SECONDS = 30;
     private static final String[] KEYWORDS = new String[]{
             "abstract", "assert", "boolean", "break", "byte", "case", "catch", "char", "class",
             "const", "continue", "default", "do", "double", "else", "enum", "extends", "final",
@@ -161,6 +165,8 @@ public class EditorController {
     private Label lblFindStatus;
     private ContextMenu suggestMenu;
     private String appVersion = "0.0.0";
+    private boolean draftsDirty = false;
+    private Timeline autosaveTimeline;
 
     private static class TabData {
         CodeArea area;
@@ -203,6 +209,7 @@ public class EditorController {
             syncModeToggle(newTab);
             updateStats();
         });
+        startAutoSave();
         checkForUpdatesAsync();
     }
 
@@ -255,6 +262,7 @@ public class EditorController {
         area.plainTextChanges().subscribe(ignore -> {
             if (!data.loading) {
                 markDirty(tab, true);
+                draftsDirty = true;
             }
             updateStats();
         });
@@ -1270,26 +1278,17 @@ public class EditorController {
         if (urls.isEmpty()) {
             return null;
         }
-        String[] prefer = new String[]{"setup", "installer", "install"};
         for (String u : urls) {
             if (u == null) {
                 continue;
             }
             String lu = u.toLowerCase();
-            if (lu.endsWith(".exe")) {
-                for (String p : prefer) {
-                    if (lu.contains(p)) {
-                        return u;
-                    }
-                }
-            }
-        }
-        for (String u : urls) {
-            if (u != null && u.toLowerCase().endsWith(".exe")) {
+            String target = RELEASE_ASSET_NAME.toLowerCase();
+            if (lu.endsWith("/" + target) || lu.endsWith(target)) {
                 return u;
             }
         }
-        return urls.get(0);
+        return null;
     }
 
     private String unescapeJsonString(String s) {
@@ -1331,6 +1330,7 @@ public class EditorController {
             Path file = getDraftFile();
             if (entries.isEmpty()) {
                 Files.deleteIfExists(file);
+                draftsDirty = false;
                 return;
             }
             Files.createDirectories(file.getParent());
@@ -1345,6 +1345,7 @@ public class EditorController {
                 sb.append("---").append("\n");
             }
             Files.writeString(file, sb.toString(), StandardCharsets.UTF_8);
+            draftsDirty = false;
         } catch (IOException ignored) {
         }
     }
@@ -1389,10 +1390,21 @@ public class EditorController {
                 tabPane.getSelectionModel().selectFirst();
                 updateStats();
             }
+            draftsDirty = false;
             return created;
         } catch (IOException ex) {
             return false;
         }
+    }
+
+    private void startAutoSave() {
+        autosaveTimeline = new Timeline(new KeyFrame(javafx.util.Duration.seconds(AUTO_SAVE_SECONDS), event -> {
+            if (draftsDirty) {
+                saveDrafts();
+            }
+        }));
+        autosaveTimeline.setCycleCount(Timeline.INDEFINITE);
+        autosaveTimeline.play();
     }
 
     private String b64(String s) {
