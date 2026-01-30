@@ -1010,4 +1010,69 @@ public class EditorController {
         }
         return KEYWORDS;
     }
+
+    private void runCodeAsync(TabData data, String language) {
+        updateStatus("Executando...");
+        new Thread(() -> {
+            try {
+                String output = runCode(data, language);
+                Platform.runLater(() -> showOutput("Saída da execução", output));
+            } catch (IOException | InterruptedException ex) {
+                Platform.runLater(() -> showError("Falha ao executar", ex.getMessage()));
+            } finally {
+                Platform.runLater(() -> updateStatus("Pronto"));
+            }
+        }, "code-runner").start();
+    }
+
+    private String runCode(TabData data, String language) throws IOException, InterruptedException {
+        if (data.filePath == null) {
+            return "Salve o arquivo antes de executar.";
+        }
+        Path file = data.filePath;
+        if ("java".equals(language)) {
+            String className = file.getFileName().toString().replaceFirst("\\.java$", "");
+            String compileOut = runProcess(List.of("javac", file.getFileName().toString()), file.getParent());
+            if (!compileOut.isEmpty()) {
+                return "Compilação:\n" + compileOut;
+            }
+            return runProcess(List.of("java", "-cp", file.getParent().toString(), className), file.getParent());
+        }
+        if ("py".equals(language)) {
+            return runProcess(List.of("python", file.getFileName().toString()), file.getParent());
+        }
+        if ("js".equals(language)) {
+            return runProcess(List.of("node", file.getFileName().toString()), file.getParent());
+        }
+        return "Linguagem não suportada para execução: " + language;
+    }
+
+    private String runProcess(List<String> command, Path workdir) throws IOException, InterruptedException {
+        ProcessBuilder pb = new ProcessBuilder(command);
+        if (workdir != null) {
+            pb.directory(workdir.toFile());
+        }
+        pb.redirectErrorStream(true);
+        Process process = pb.start();
+        byte[] bytes = process.getInputStream().readAllBytes();
+        int exit = process.waitFor();
+        String output = new String(bytes, StandardCharsets.UTF_8);
+        if (exit != 0) {
+            return "Erro (exit " + exit + "):\n" + output;
+        }
+        return output.isEmpty() ? "Sem saída." : output;
+    }
+
+    private void showOutput(String title, String output) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        TextArea area = new TextArea(output);
+        area.setEditable(false);
+        area.setWrapText(true);
+        area.setPrefWidth(640);
+        area.setPrefHeight(360);
+        alert.getDialogPane().setContent(area);
+        alert.showAndWait();
+    }
 }
