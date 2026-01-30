@@ -521,6 +521,22 @@ public class EditorController {
         showFindReplace(true);
     }
 
+    @FXML
+    public void handleModeText() {
+        TabData data = getCurrentData();
+        if (data != null) {
+            setMode(data, false);
+        }
+    }
+
+    @FXML
+    public void handleModeCode() {
+        TabData data = getCurrentData();
+        if (data != null) {
+            setMode(data, true);
+        }
+    }
+
     private void showFindReplace(boolean focusReplace) {
         if (findStage == null) {
             buildFindDialog();
