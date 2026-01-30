@@ -269,6 +269,7 @@ public class EditorController {
                 event.consume();
             }
         });
+        tab.setOnClosed(event -> saveDrafts());
 
         applyHighlight(data);
         return data;
@@ -713,6 +714,7 @@ public class EditorController {
             if (tabPane.getTabs().isEmpty()) {
                 createNewTab();
             }
+            saveDrafts();
         }
     }
 
@@ -1173,29 +1175,41 @@ public class EditorController {
                 String body = res.body();
                 String tag = extractJsonString(body, "tag_name");
                 String url = extractJsonString(body, "html_url");
+                String downloadUrl = extractLatestDownloadUrl(body);
                 if (tag == null || url == null) {
                     return;
                 }
                 if (compareVersions(tag, appVersion) > 0) {
-                    Platform.runLater(() -> showUpdateDialog(tag, url));
+                    Platform.runLater(() -> showUpdateDialog(tag, url, downloadUrl));
                 }
             } catch (Exception ignored) {
             }
         }, "update-check").start();
     }
 
-    private void showUpdateDialog(String latest, String url) {
+    private void showUpdateDialog(String latest, String releaseUrl, String downloadUrl) {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle("Atualização disponível");
         alert.setHeaderText("Nova versão " + latest + " disponível");
         alert.setContentText("Sua versão atual: " + appVersion + "\nDeseja atualizar agora?");
+        ButtonType btnDownload = downloadUrl == null ? null : new ButtonType("Baixar e instalar");
         ButtonType btnUpdate = new ButtonType("Atualizar");
         ButtonType btnLater = new ButtonType("Mais tarde", ButtonBar.ButtonData.CANCEL_CLOSE);
-        alert.getButtonTypes().setAll(btnUpdate, btnLater);
+        if (btnDownload != null) {
+            alert.getButtonTypes().setAll(btnDownload, btnUpdate, btnLater);
+        } else {
+            alert.getButtonTypes().setAll(btnUpdate, btnLater);
+        }
         Optional<ButtonType> result = alert.showAndWait();
-        if (result.isPresent() && result.get() == btnUpdate) {
+        if (result.isPresent() && result.get() == btnDownload) {
             try {
-                java.awt.Desktop.getDesktop().browse(URI.create(url));
+                java.awt.Desktop.getDesktop().browse(URI.create(downloadUrl));
+            } catch (Exception ex) {
+                showError("Falha ao abrir o navegador", ex.getMessage());
+            }
+        } else if (result.isPresent() && result.get() == btnUpdate) {
+            try {
+                java.awt.Desktop.getDesktop().browse(URI.create(releaseUrl));
             } catch (Exception ex) {
                 showError("Falha ao abrir o navegador", ex.getMessage());
             }
@@ -1240,7 +1254,49 @@ public class EditorController {
         if (!m.find()) {
             return null;
         }
-        return m.group(1).replace("\\\"", "\"");
+        return unescapeJsonString(m.group(1));
+    }
+
+    private String extractLatestDownloadUrl(String json) {
+        if (json == null) {
+            return null;
+        }
+        Pattern p = Pattern.compile("\"browser_download_url\"\\s*:\\s*\"(.*?)\"");
+        Matcher m = p.matcher(json);
+        List<String> urls = new ArrayList<>();
+        while (m.find()) {
+            urls.add(unescapeJsonString(m.group(1)));
+        }
+        if (urls.isEmpty()) {
+            return null;
+        }
+        String[] prefer = new String[]{"setup", "installer", "install"};
+        for (String u : urls) {
+            if (u == null) {
+                continue;
+            }
+            String lu = u.toLowerCase();
+            if (lu.endsWith(".exe")) {
+                for (String p : prefer) {
+                    if (lu.contains(p)) {
+                        return u;
+                    }
+                }
+            }
+        }
+        for (String u : urls) {
+            if (u != null && u.toLowerCase().endsWith(".exe")) {
+                return u;
+            }
+        }
+        return urls.get(0);
+    }
+
+    private String unescapeJsonString(String s) {
+        if (s == null) {
+            return null;
+        }
+        return s.replace("\\/", "/").replace("\\\"", "\"");
     }
 
     private Path getDraftFile() {
