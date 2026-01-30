@@ -1026,18 +1026,13 @@ public class EditorController {
     }
 
     private String runCode(TabData data, String language) throws IOException, InterruptedException {
+        if ("java".equals(language)) {
+            return runJavaFromBuffer(data);
+        }
         if (data.filePath == null) {
             return "Salve o arquivo antes de executar.";
         }
         Path file = data.filePath;
-        if ("java".equals(language)) {
-            String className = file.getFileName().toString().replaceFirst("\\.java$", "");
-            String compileOut = runProcess(List.of("javac", file.getFileName().toString()), file.getParent());
-            if (!compileOut.isEmpty()) {
-                return "Compilação:\n" + compileOut;
-            }
-            return runProcess(List.of("java", "-cp", file.getParent().toString(), className), file.getParent());
-        }
         if ("py".equals(language)) {
             return runProcess(List.of("python", file.getFileName().toString()), file.getParent());
         }
@@ -1045,6 +1040,26 @@ public class EditorController {
             return runProcess(List.of("node", file.getFileName().toString()), file.getParent());
         }
         return "Linguagem não suportada para execução: " + language;
+    }
+
+    private String runJavaFromBuffer(TabData data) throws IOException, InterruptedException {
+        String source = data.area.getText();
+        String className = detectJavaClassName(source);
+        if (className == null) {
+            return "Não foi possível identificar uma classe Java para executar.";
+        }
+        String packageName = detectJavaPackage(source);
+        String qualifiedName = packageName == null ? className : packageName + "." + className;
+
+        Path tempDir = Files.createTempDirectory("codepad-java-");
+        Path javaFile = tempDir.resolve(className + ".java");
+        Files.writeString(javaFile, source, StandardCharsets.UTF_8);
+
+        String compileOut = runProcess(List.of("javac", "-d", tempDir.toString(), javaFile.toString()), tempDir);
+        if (!compileOut.isEmpty()) {
+            return "Compilação:\n" + compileOut;
+        }
+        return runProcess(List.of("java", "-cp", tempDir.toString(), qualifiedName), tempDir);
     }
 
     private String runProcess(List<String> command, Path workdir) throws IOException, InterruptedException {
@@ -1074,5 +1089,25 @@ public class EditorController {
         area.setPrefHeight(360);
         alert.getDialogPane().setContent(area);
         alert.showAndWait();
+    }
+
+    private String detectJavaClassName(String source) {
+        Matcher publicClass = Pattern.compile("\\bpublic\\s+class\\s+(\\w+)").matcher(source);
+        if (publicClass.find()) {
+            return publicClass.group(1);
+        }
+        Matcher classWithMain = Pattern.compile("\\bclass\\s+(\\w+)").matcher(source);
+        if (classWithMain.find()) {
+            return classWithMain.group(1);
+        }
+        return null;
+    }
+
+    private String detectJavaPackage(String source) {
+        Matcher pkg = Pattern.compile("\\bpackage\\s+([\\w\\.]+)\\s*;").matcher(source);
+        if (pkg.find()) {
+            return pkg.group(1);
+        }
+        return null;
     }
 }
