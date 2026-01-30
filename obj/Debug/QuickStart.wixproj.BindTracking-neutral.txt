@@ -1,0 +1,5 @@
+BuiltContentOutput	J:\ProjetosJava\PromoPingPainel\obj\Debug\cab1.cab
+BuiltPdbOutput	J:\ProjetosJava\PromoPingPainel\obj\Debug\QuickStart.wixpdb
+BuiltTargetOutput	J:\ProjetosJava\PromoPingPainel\obj\Debug\QuickStart.msi
+Input	example.txt
+Intermediate	J:\ProjetosJava\PromoPingPainel\obj\Debug\cab1.cab

@@ -1,0 +1,8 @@
+J:\ProjetosJava\PromoPingPainel\obj\Debug\QuickStart.wixproj.CoreCompileInputs.cache
+J:\ProjetosJava\PromoPingPainel\bin\Debug\QuickStart.msi
+J:\ProjetosJava\PromoPingPainel\bin\Debug\cab1.cab
+J:\ProjetosJava\PromoPingPainel\bin\Debug\QuickStart.wixpdb
+J:\ProjetosJava\PromoPingPainel\obj\Debug\cab1.cab
+J:\ProjetosJava\PromoPingPainel\obj\Debug\QuickStart.msi
+J:\ProjetosJava\PromoPingPainel\obj\Debug\QuickStart.wixpdb
+J:\ProjetosJava\PromoPingPainel\obj\Debug\QuickStart.wixproj.BindTracking-neutral.txt
