@@ -60,7 +60,7 @@ public class EditorController {
     private static final String APP_NAME = "PromoPing CodePad";
     private static final String UPDATE_API = "https://api.github.com/repos/juliareboucasleite/PromoPing-CodePad/releases/latest";
     private static final String RELEASES_URL = "https://github.com/juliareboucasleite/PromoPing-CodePad/releases";
-    private static final String RELEASE_ASSET_NAME = "PromoPingCodePad-Setup.exe";
+    private static final String RELEASE_ASSET_NAME = "CodePad.exe";
     private static final String DRAFTS_DIR = "PromoPingCodePad";
     private static final String LEGACY_DRAFTS_DIR = "CodePad";
     private static final String DRAFTS_FILE = "drafts.dat";

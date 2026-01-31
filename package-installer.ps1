@@ -85,7 +85,7 @@ Write-Host "Copiando dependencias..." -ForegroundColor Cyan
 & .\mvnw "-DincludeArtifactIds=javafx-controls,javafx-fxml,javafx-graphics,javafx-base" -Dclassifier=win `
     dependency:copy-dependencies -DoutputDirectory=target\javafx
 
-$jarName = "PromoPingPainel-1.1.1.jar"
+$jarName = "PromoPingPainel-1.1.2.jar"
 $appDir = "target\app"
 New-Item -ItemType Directory -Force -Path $appDir | Out-Null
 Copy-Item -Force -Path ("target\" + $jarName) -Destination $appDir
@@ -111,7 +111,7 @@ if (Test-Path $ico) {
     --dest $dest `
     --input $appDir `
     --name "CodePad" `
-    --app-version "1.1.1" `
+    --app-version "1.1.2" `
     --main-jar $jarName `
     --main-class "org.example.Main" `
     --module-path "target\javafx" `
