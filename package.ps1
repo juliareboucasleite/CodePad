@@ -109,11 +109,11 @@ if ($ico) {
     --type app-image `
     --dest $dest `
     --input $appDir `
-    --name "PromoPingCodePad" `
+    --name "CodePad" `
     --main-jar $jarName `
     --main-class "org.example.Main" `
     --module-path "target\javafx" `
     --add-modules "javafx.controls,javafx.fxml,javafx.graphics,javafx.base" `
     @iconArg
 
-Write-Host "Pronto. App em dist\PromoPingCodePad" -ForegroundColor Green
+Write-Host "Pronto. App em dist\CodePad" -ForegroundColor Green
