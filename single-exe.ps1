@@ -18,9 +18,9 @@ if (-not (Test-Path $sevenZip) -or -not (Test-Path $sfx)) {
 Write-Host "Gerando app-image..." -ForegroundColor Cyan
 & .\package.ps1
 
-$appDir = "dist\PromoPingCodePad"
-$outExe = "dist\PromoPingCodePad-Standalone.exe"
-$temp7z = "dist\PromoPingCodePad.7z"
+$appDir = "dist\CodePad"
+$outExe = "dist\CodePad-Standalone.exe"
+$temp7z = "dist\CodePad.7z"
 $config = "dist\7zconfig.txt"
 
 if (-not (Test-Path $appDir)) {
@@ -28,7 +28,7 @@ if (-not (Test-Path $appDir)) {
     exit 1
 }
 
-";!@Install@!UTF-8!`nRunProgram=`"PromoPingCodePad.exe`"`n;!@InstallEnd@!" | Set-Content -Path $config -Encoding ASCII
+";!@Install@!UTF-8!`nRunProgram=`"CodePad.exe`"`n;!@InstallEnd@!" | Set-Content -Path $config -Encoding ASCII
 
 Write-Host "Compactando..." -ForegroundColor Cyan
 & $sevenZip a -t7z -mx=9 $temp7z "$appDir\*"
