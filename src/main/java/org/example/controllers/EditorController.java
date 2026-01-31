@@ -56,9 +56,12 @@ public class EditorController {
 
     private static final String THEME_LIGHT = "/org/example/editor-light.css";
     private static final String THEME_DARK = "/org/example/editor-dark.css";
-    private static final String UPDATE_API = "https://api.github.com/repos/juliareboucasleite/PromoPing-CodePad/releases/latest";
-    private static final String RELEASES_URL = "https://github.com/juliareboucasleite/PromoPing-CodePad/releases";
-    private static final String RELEASE_ASSET_NAME = "PromoPingCodePad-Setup.exe";
+    private static final String APP_NAME = "CodePad";
+    private static final String UPDATE_API = "https://api.github.com/repos/juliareboucasleite/CodePad/releases/latest";
+    private static final String RELEASES_URL = "https://github.com/juliareboucasleite/CodePad/releases";
+    private static final String RELEASE_ASSET_NAME = "CodePad-Setup.exe";
+    private static final String DRAFTS_DIR = "CodePad";
+    private static final String LEGACY_DRAFTS_DIR = "PromoPingCodePad";
     private static final String DRAFTS_FILE = "drafts.dat";
     private static final int AUTO_SAVE_SECONDS = 30;
     private static final String[] KEYWORDS = new String[]{
@@ -977,7 +980,7 @@ public class EditorController {
     public void handleAbout() {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Sobre");
-        alert.setHeaderText("PromoPing CodePad");
+        alert.setHeaderText(APP_NAME);
         alert.setContentText("Editor simples com abas, destaque de sintaxe e temas.");
         alert.showAndWait();
     }
@@ -1174,7 +1177,7 @@ public class EditorController {
                 HttpRequest req = HttpRequest.newBuilder()
                         .uri(URI.create(UPDATE_API))
                         .header("Accept", "application/vnd.github+json")
-                        .header("User-Agent", "PromoPingCodePad")
+                        .header("User-Agent", APP_NAME)
                         .build();
                 HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());
                 if (res.statusCode() != 200) {
@@ -1299,11 +1302,19 @@ public class EditorController {
     }
 
     private Path getDraftFile() {
+        return buildDraftPath(DRAFTS_DIR);
+    }
+
+    private Path getLegacyDraftFile() {
+        return buildDraftPath(LEGACY_DRAFTS_DIR);
+    }
+
+    private Path buildDraftPath(String dirName) {
         String base = System.getenv("LOCALAPPDATA");
         if (base == null || base.isBlank()) {
             base = System.getProperty("user.home");
         }
-        return Paths.get(base, "PromoPingCodePad", DRAFTS_FILE);
+        return Paths.get(base, dirName, DRAFTS_FILE);
     }
 
     private void saveDrafts() {
@@ -1353,7 +1364,11 @@ public class EditorController {
     private boolean loadDrafts() {
         Path file = getDraftFile();
         if (!Files.exists(file)) {
-            return false;
+            Path legacy = getLegacyDraftFile();
+            if (!Files.exists(legacy)) {
+                return false;
+            }
+            file = legacy;
         }
         try {
             List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
