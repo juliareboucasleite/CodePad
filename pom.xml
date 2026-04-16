@@ -7,8 +7,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.example</groupId>
-    <artifactId>PromoPingPainel</artifactId>
-    <version>1.1.2</version>
+    <artifactId>CodePad</artifactId>
+    <version>1.2.1</version>
 
     <properties>
         <java.version>21</java.version>

@@ -78,15 +78,18 @@ if ($missing.Count -gt 0) {
 }
 
 Write-Host "Build do projeto..." -ForegroundColor Cyan
-& .\mvnw -DskipTests package
+& .\mvnw -DskipTests clean package
 
 Write-Host "Copiando dependencias..." -ForegroundColor Cyan
 & .\mvnw -DincludeScope=runtime dependency:copy-dependencies -DoutputDirectory=target\app-libs
 & .\mvnw "-DincludeArtifactIds=javafx-controls,javafx-fxml,javafx-graphics,javafx-base" -Dclassifier=win `
     dependency:copy-dependencies -DoutputDirectory=target\javafx
 
-$jarName = "PromoPingPainel-1.1.2.jar"
+$jarName = "CodePad-1.2.1.jar"
 $appDir = "target\app"
+if (Test-Path $appDir) {
+    Remove-Item -Recurse -Force $appDir
+}
 New-Item -ItemType Directory -Force -Path $appDir | Out-Null
 Copy-Item -Force -Path ("target\" + $jarName) -Destination $appDir
 Copy-Item -Force -Path "target\app-libs\*" -Destination $appDir
@@ -100,7 +103,7 @@ if (-not (Test-Path $jpackage)) {
 Write-Host "Gerando instalador exe..." -ForegroundColor Cyan
 $dest = "dist\installer"
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
-$installerOut = Join-Path $dest "CodePad-1.1.2.exe"
+$installerOut = Join-Path $dest "CodePad-1.2.1.exe"
 if (Test-Path $installerOut) {
     Remove-Item -Force $installerOut
 }
@@ -115,7 +118,8 @@ if (Test-Path $ico) {
     --dest $dest `
     --input $appDir `
     --name "CodePad" `
-    --app-version "1.1.2" `
+    --vendor "juliareboucasleite" `
+    --app-version "1.2.1" `
     --main-jar $jarName `
     --main-class "org.example.Main" `
     --module-path "target\javafx" `
