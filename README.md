@@ -1,6 +1,6 @@
 ﻿CodePad é um editor de texto e código desenvolvido em JavaFX, com suporte a múltiplas abas, destaque de sintaxe, auto-complete e execução de código, focado em produtividade e simplicidade. Ele suporta abas, modo Texto e modo Código, destaque de sintaxe, auto-complete com Ctrl+Space, snippets como psvm e sout, auto-fechamento de parênteses e aspas, busca e substituição e temas claro e escuro. Também permite executar arquivos Java, Python e JavaScript diretamente pelo botão Executar quando o modo Código está ativo.
 
-Para usar, abra o aplicativo e crie ou abra arquivos. No modo Código, use Tab para expandir snippets, Ctrl+Space para sugestões e o botão Executar para rodar o arquivo atual. O executável portátil está em dist\CodePad e o arquivo compactado para release é dist\CodePad.zip.
+Para usar, abra o aplicativo e crie ou abra arquivos. No modo Código, use Tab para expandir snippets, Ctrl+Space para sugestões e o botão Executar para rodar o arquivo atual. O executável portátil está em dist\CodePad e o instalador da release fica em dist\installer.
 
 Download do app: acesse a página de Releases do GitHub e baixe a versão mais recente do instalador (.exe).
 Releases: https://github.com/juliareboucasleite/CodePad/releases
