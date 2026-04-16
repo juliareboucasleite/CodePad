@@ -8,8 +8,8 @@ if (-not $env:JAVA_HOME) {
     exit 1
 }
 
-$png = "src\main\resources\org\example\nodecode.png"
-$ico = "src\main\resources\org\example\nodecode.ico"
+$png = "src\main\resources\org\example\codePadLogo.png"
+$ico = "src\main\resources\org\example\codePadLogo.ico"
 
 if (-not (Test-Path $png)) {
     Write-Host "Icone PNG nao encontrado: $png" -ForegroundColor Yellow
@@ -19,13 +19,13 @@ if (-not (Test-Path $png)) {
 New-Item -ItemType Directory -Force -Path "dist" | Out-Null
 
 if (-not (Test-Path $ico)) {
-    $icoOut = (Resolve-Path "dist") + "\nodecode.ico"
+    $icoOut = Join-Path (Resolve-Path "dist").Path "codePadLogo.ico"
     $magick = Get-Command magick -ErrorAction SilentlyContinue
     if ($magick) {
         try {
             & $magick.Source $png -define icon:auto-resize=256,128,64,48,32,24,16 $icoOut
             if (Test-Path $icoOut) {
-                $ico = "dist\nodecode.ico"
+                $ico = "dist\codePadLogo.ico"
             }
         } catch {
             Write-Host "Falha ao gerar .ico com ImageMagick. Tentando conversao simples..." -ForegroundColor Yellow
@@ -41,7 +41,7 @@ if (-not (Test-Path $ico)) {
             $fs.Close()
             $icon.Dispose()
             $img.Dispose()
-            $ico = "dist\nodecode.ico"
+            $ico = "dist\codePadLogo.ico"
         } catch {
             Write-Host "Falha ao converter PNG para ICO. Envie um .ico multi-tamanho (16-256)." -ForegroundColor Yellow
         }
@@ -100,6 +100,10 @@ if (-not (Test-Path $jpackage)) {
 Write-Host "Gerando instalador exe..." -ForegroundColor Cyan
 $dest = "dist\installer"
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
+$installerOut = Join-Path $dest "CodePad-1.1.2.exe"
+if (Test-Path $installerOut) {
+    Remove-Item -Force $installerOut
+}
 
 $iconArg = @()
 if (Test-Path $ico) {
@@ -121,5 +125,9 @@ if (Test-Path $ico) {
     --install-dir "CodePad" `
     --win-per-user-install `
     @iconArg
+
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
 
 Write-Host "Pronto. Instalador em dist\installer" -ForegroundColor Green

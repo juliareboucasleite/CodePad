@@ -13,7 +13,7 @@ public class Main extends Application {
 
         Scene scene = new Scene(loader.load());
         stage.setTitle("CodePad");
-        stage.getIcons().add(new Image(getClass().getResourceAsStream("nodecode.png")));
+        stage.getIcons().add(new Image(getClass().getResourceAsStream("codePadLogo.png")));
         stage.setScene(scene);
         var controller = loader.getController();
         if (controller instanceof org.example.controllers.EditorController editorController) {
@@ -29,4 +29,3 @@ public class Main extends Application {
         launch();
     }
 }
-

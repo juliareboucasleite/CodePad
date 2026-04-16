@@ -12,21 +12,21 @@ Write-Host "Build do projeto..." -ForegroundColor Cyan
 & .\mvnw -DskipTests package
 
 Write-Host "Preparando icone..." -ForegroundColor Cyan
-$png = "src\main\resources\org\example\nodecode.png"
-$ico = "src\main\resources\org\example\nodecode.ico"
+$png = "src\main\resources\org\example\codePadLogo.png"
+$ico = "src\main\resources\org\example\codePadLogo.ico"
 
 if (-not (Test-Path "dist")) {
     New-Item -ItemType Directory -Force -Path "dist" | Out-Null
 }
 
 if (-not (Test-Path $ico) -and (Test-Path $png)) {
-    $icoOut = (Resolve-Path "dist") + "\nodecode.ico"
+    $icoOut = Join-Path (Resolve-Path "dist").Path "codePadLogo.ico"
     $magick = Get-Command magick -ErrorAction SilentlyContinue
     if ($magick) {
         try {
             & $magick.Source $png -define icon:auto-resize=256,128,64,48,32,24,16 $icoOut
             if (Test-Path $icoOut) {
-                $ico = "dist\nodecode.ico"
+                $ico = "dist\codePadLogo.ico"
             }
         } catch {
             Write-Host "Falha ao gerar .ico com ImageMagick. Tentando conversao simples..." -ForegroundColor Yellow
@@ -42,7 +42,7 @@ if (-not (Test-Path $ico) -and (Test-Path $png)) {
             $fs.Close()
             $icon.Dispose()
             $img.Dispose()
-            $ico = "dist\nodecode.ico"
+            $ico = "dist\codePadLogo.ico"
         } catch {
             Write-Host "Falha ao converter PNG para ICO. Use um .ico multi-tamanho (16-256)." -ForegroundColor Yellow
             $ico = $null
@@ -93,6 +93,10 @@ Copy-Item -Force -Path "target\app-libs\*" -Destination $appDir
 Write-Host "Gerando app-image com jpackage..." -ForegroundColor Cyan
 $dest = "dist"
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
+$appImage = Join-Path $dest "CodePad"
+if (Test-Path $appImage) {
+    Remove-Item -Recurse -Force $appImage
+}
 
 $jpackage = Join-Path $env:JAVA_HOME "bin\jpackage.exe"
 if (-not (Test-Path $jpackage)) {
@@ -115,5 +119,9 @@ if ($ico) {
     --module-path "target\javafx" `
     --add-modules "javafx.controls,javafx.fxml,javafx.graphics,javafx.base" `
     @iconArg
+
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
 
 Write-Host "Pronto. App em dist\CodePad" -ForegroundColor Green
