@@ -104,8 +104,9 @@ Write-Host "Gerando instalador exe..." -ForegroundColor Cyan
 $dest = "dist\installer"
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
 $installerOut = Join-Path $dest "CodePad-1.2.1.exe"
-if (Test-Path $installerOut) {
-    Remove-Item -Force $installerOut
+Get-ChildItem -Path $dest -Filter "CodePad-*.exe" -File -ErrorAction SilentlyContinue | ForEach-Object {
+    $_.IsReadOnly = $false
+    Remove-Item -Force $_.FullName
 }
 
 $iconArg = @()
