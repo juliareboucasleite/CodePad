@@ -9,18 +9,14 @@ import javafx.util.Duration;
 import javafx.animation.PauseTransition;
 
 /**
- * Ativa Mica/Acrylic do Windows 11 (blur do papel de parede, como o Explorador de Arquivos).
+ * Ativa Mica/Acrylic do Windows 11 e transparência da janela Glass (JavaFX).
  */
 public final class WindowsBackdrop {
 
     public enum Backdrop {
-        /** Mica — superfícies principais (Explorador, Configurações). */
         MICA(2),
-        /** Mica Alt — abas / janelas secundárias. */
         MICA_ALT(4),
-        /** Acrylic — mais translúcido / blur visível. */
         ACRYLIC(3),
-        /** Desliga o efeito. */
         NONE(1);
 
         final int dwmsbtValue;
@@ -47,14 +43,14 @@ public final class WindowsBackdrop {
         return os.contains("win");
     }
 
-    /**
-     * Aplica o backdrop com novas tentativas até o handle nativo existir (JavaFX demora a criar HWND).
-     */
     public static void apply(Stage stage, boolean darkMode, Backdrop backdrop) {
         if (!isSupported() || stage == null) {
             return;
         }
-        Runnable task = () -> scheduleApply(stage, darkMode, backdrop, 0);
+        Runnable task = () -> {
+            configureTransparentWindow(stage);
+            scheduleApply(stage, darkMode, backdrop, 0);
+        };
         if (stage.isShowing()) {
             task.run();
         } else {
@@ -70,18 +66,39 @@ public final class WindowsBackdrop {
         if (!isSupported() || stage == null) {
             return false;
         }
+        configureTransparentWindow(stage);
         long hwnd = nativeHandle(stage);
         if (hwnd == 0L) {
             return false;
         }
         WinDef.HWND hWnd = new WinDef.HWND(com.sun.jna.Pointer.createConstant(hwnd));
         setIntAttribute(hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, darkMode ? 1 : 0);
-        applyBackdropType(hWnd, backdrop);
-        return true;
+        return applyBackdropType(hWnd, backdrop);
     }
 
-    /** Mica → Mica Alt → Acrylic (blur mais visível, como o utilizador espera). */
-    private static void applyBackdropType(WinDef.HWND hWnd, Backdrop preferred) {
+    /**
+     * JavaFX no Windows pinta fundo opaco por defeito; sem isto o Mica não aparece na área cliente.
+     */
+    @SuppressWarnings("restriction")
+    public static void configureTransparentWindow(Stage stage) {
+        if (stage == null) {
+            return;
+        }
+        try {
+            Object peer = com.sun.javafx.stage.WindowHelper.getPeer(stage);
+            if (peer instanceof com.sun.javafx.tk.quantum.WindowStage windowStage) {
+                com.sun.glass.ui.Window platformWindow = windowStage.getPlatformWindow();
+                if (platformWindow != null) {
+                    java.lang.reflect.Method setOpaque = platformWindow.getClass()
+                            .getMethod("setOpaque", boolean.class);
+                    setOpaque.invoke(platformWindow, false);
+                }
+            }
+        } catch (ReflectiveOperationException | Error ignored) {
+        }
+    }
+
+    private static boolean applyBackdropType(WinDef.HWND hWnd, Backdrop preferred) {
         int[] order = switch (preferred) {
             case ACRYLIC -> new int[]{
                     Backdrop.ACRYLIC.dwmsbtValue,
@@ -101,19 +118,20 @@ public final class WindowsBackdrop {
         };
         for (int type : order) {
             if (setIntAttribute(hWnd, DWMWA_SYSTEMBACKDROP_TYPE, type) == 0) {
-                return;
+                return true;
             }
         }
+        return false;
     }
 
     private static void scheduleApply(Stage stage, boolean darkMode, Backdrop backdrop, int attempt) {
         if (applyNow(stage, darkMode, backdrop)) {
             return;
         }
-        if (attempt >= 8) {
+        if (attempt >= 10) {
             return;
         }
-        PauseTransition pause = new PauseTransition(Duration.millis(80L * (attempt + 1)));
+        PauseTransition pause = new PauseTransition(Duration.millis(100L * (attempt + 1)));
         pause.setOnFinished(e -> scheduleApply(stage, darkMode, backdrop, attempt + 1));
         pause.play();
     }
@@ -129,11 +147,9 @@ public final class WindowsBackdrop {
         try {
             Object peer = com.sun.javafx.stage.WindowHelper.getPeer(stage);
             if (peer instanceof com.sun.javafx.tk.quantum.WindowStage windowStage) {
-                com.sun.glass.ui.Window platformWindow = windowStage.getPlatformWindow();
-                return handleFromPlatformWindow(platformWindow);
+                return handleFromPlatformWindow(windowStage.getPlatformWindow());
             }
         } catch (Exception | Error ignored) {
-            // API interna indisponível
         }
         return 0L;
     }
@@ -145,25 +161,19 @@ public final class WindowsBackdrop {
         try {
             java.lang.reflect.Method method = platformWindow.getClass().getMethod("getNativeHandle");
             Object handle = method.invoke(platformWindow);
-            if (handle instanceof Long l) {
-                return l;
-            }
             if (handle instanceof Number n) {
                 return n.longValue();
             }
         } catch (ReflectiveOperationException ignored) {
         }
-        String className = platformWindow.getClass().getName();
-        if (className.contains("Win")) {
-            try {
-                java.lang.reflect.Field field = platformWindow.getClass().getDeclaredField("hwnd");
-                field.setAccessible(true);
-                Object hwnd = field.get(platformWindow);
-                if (hwnd instanceof Number n) {
-                    return n.longValue();
-                }
-            } catch (ReflectiveOperationException ignored) {
+        try {
+            java.lang.reflect.Field field = platformWindow.getClass().getDeclaredField("hwnd");
+            field.setAccessible(true);
+            Object hwnd = field.get(platformWindow);
+            if (hwnd instanceof Number n) {
+                return n.longValue();
             }
+        } catch (ReflectiveOperationException ignored) {
         }
         return 0L;
     }

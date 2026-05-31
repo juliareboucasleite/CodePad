@@ -13,6 +13,7 @@ import javafx.scene.input.ClipboardContent;
 import javafx.event.ActionEvent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.Background;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -793,6 +794,7 @@ public class EditorController {
         area.getStyleClass().add(codeMode ? "code-area" : "text-area");
         if (micaEnabled) {
             area.getStyleClass().add("mica-editor");
+            area.setBackground(Background.EMPTY);
         }
         area.setParagraphGraphicFactory(LineNumberFactory.get(area));
 
@@ -1806,8 +1808,11 @@ public class EditorController {
                 root.getStyleClass().removeAll("mica-window", "mica-light", "glass-chrome");
             }
         } else {
-            boolean enable = miGlassStyle == null || miGlassStyle.isSelected();
+            boolean enable = miGlassStyle != null && miGlassStyle.isSelected();
             setMicaEnabled(enable);
+            if (!enable) {
+                updateSceneFill();
+            }
         }
         checkForUpdatesAsync();
     }
@@ -1817,23 +1822,46 @@ public class EditorController {
         if (root == null) {
             return;
         }
+        if (miThemeLight != null) {
+            miThemeLight.setDisable(enabled);
+        }
         if (enabled) {
             if (!root.getStyleClass().contains("mica-window")) {
                 root.getStyleClass().add("mica-window");
             }
             root.getStyleClass().remove("glass-chrome");
-            ensureMicaStylesheet();
-            syncMicaThemeClass();
+            applyGlassTheme();
             applyWindowsBackdrop();
         } else {
-            root.getStyleClass().removeAll("mica-window", "mica-light", "glass-chrome");
+            root.getStyleClass().removeAll("mica-window", "mica-light", "mica-live", "glass-chrome");
             root.setStyle("");
             removeMicaStylesheet();
+            setMicaLiveClass(false);
             if (mainStage != null) {
                 WindowsBackdrop.apply(mainStage, isDarkTheme(), WindowsBackdrop.Backdrop.NONE);
             }
             updateSceneFill();
+            applyEditorStyleAll();
         }
+    }
+
+    /** Vidro exige tema escuro; recarrega folhas para não misturar tema claro (branco + texto ilegível). */
+    private void applyGlassTheme() {
+        if (root == null) {
+            return;
+        }
+        if (miThemeDark != null) {
+            miThemeDark.setSelected(true);
+        }
+        currentTheme = THEME_DARK;
+        root.getStylesheets().clear();
+        java.net.URL dark = getClass().getResource(THEME_DARK);
+        if (dark != null) {
+            root.getStylesheets().add(dark.toExternalForm());
+        }
+        ensureMicaStylesheet();
+        syncMicaThemeClass();
+        applyMicaVisuals();
     }
 
     private void ensureMicaStylesheet() {
@@ -1859,21 +1887,24 @@ public class EditorController {
         return THEME_DARK.equals(currentTheme);
     }
 
-    /** Chrome Mica segue o tema escolhido no menu (Tema Claro / Tema Escuro). */
-    private boolean isMicaLightChrome() {
-        return !isDarkTheme();
-    }
-
+    /** Vidro/Mica usa sempre tema escuro (tema claro deixa o painel branco e opaco). */
     private void syncMicaThemeClass() {
         if (root == null) {
             return;
         }
-        if (isMicaLightChrome()) {
-            if (!root.getStyleClass().contains("mica-light")) {
-                root.getStyleClass().add("mica-light");
+        root.getStyleClass().remove("mica-light");
+    }
+
+    private void setMicaLiveClass(boolean dwmActive) {
+        if (root == null) {
+            return;
+        }
+        if (dwmActive && micaEnabled) {
+            if (!root.getStyleClass().contains("mica-live")) {
+                root.getStyleClass().add("mica-live");
             }
         } else {
-            root.getStyleClass().remove("mica-light");
+            root.getStyleClass().remove("mica-live");
         }
     }
 
@@ -1884,8 +1915,10 @@ public class EditorController {
         if (mainStage == null || mainStage.getScene() == null) {
             return;
         }
-        if (micaEnabled) {
+        if (micaEnabled && root != null && root.getStyleClass().contains("mica-live")) {
             mainStage.getScene().setFill(Color.TRANSPARENT);
+        } else if (micaEnabled) {
+            mainStage.getScene().setFill(Color.web("#1a1c22"));
         } else if (isDarkTheme()) {
             mainStage.getScene().setFill(Color.web("#2b2f36"));
         } else {
@@ -1898,13 +1931,16 @@ public class EditorController {
             return;
         }
         if (micaEnabled) {
-            root.getStyleClass().remove("mica-fallback");
-            root.setStyle("-fx-background-color: transparent; -fx-background-insets: 0;");
+            boolean live = root.getStyleClass().contains("mica-live");
+            root.setStyle(live
+                    ? "-fx-background-color: transparent; -fx-background-insets: 0;"
+                    : "-fx-background-color: rgba(22, 24, 30, 0.92); -fx-background-insets: 0;");
             applyEditorStyleAll();
             for (Tab tab : tabPane.getTabs()) {
                 TabData data = (TabData) tab.getUserData();
                 if (data != null && data.area != null) {
                     data.area.getStyleClass().add("mica-editor");
+                    data.area.setBackground(Background.EMPTY);
                 }
             }
         } else {
@@ -1913,6 +1949,7 @@ public class EditorController {
                 TabData data = (TabData) tab.getUserData();
                 if (data != null && data.area != null) {
                     data.area.getStyleClass().remove("mica-editor");
+                    data.area.setBackground(null);
                 }
             }
         }
@@ -1927,9 +1964,15 @@ public class EditorController {
                     javafx.util.Duration.millis(delayMs));
             pause.setOnFinished(e -> {
                 if (micaEnabled && mainStage != null) {
-                    WindowsBackdrop.applyNow(mainStage, isDarkTheme(), WindowsBackdrop.Backdrop.MICA);
+                    boolean dwm = WindowsBackdrop.applyNow(mainStage, true, WindowsBackdrop.Backdrop.MICA);
+                    setMicaLiveClass(dwm);
                     updateSceneFill();
                     applyMicaVisuals();
+                    if (dwm) {
+                        updateStatus("Vidro ativo — papel de parede com blur (Windows 11).");
+                    } else {
+                        updateStatus("Vidro escuro ativo. Blur do sistema indisponível nesta janela.");
+                    }
                 }
             });
             pause.play();
@@ -1945,7 +1988,7 @@ public class EditorController {
         syncMicaThemeClass();
         updateSceneFill();
         applyMicaVisuals();
-        WindowsBackdrop.apply(mainStage, isDarkTheme(), WindowsBackdrop.Backdrop.MICA);
+        WindowsBackdrop.apply(mainStage, true, WindowsBackdrop.Backdrop.MICA);
         scheduleBackdropReapply();
     }
 
@@ -2010,6 +2053,13 @@ public class EditorController {
 
     @FXML
     public void handleThemeLight() {
+        if (micaEnabled) {
+            if (miThemeDark != null) {
+                miThemeDark.setSelected(true);
+            }
+            updateStatus("Com Vidro/Mica ativo use Tema Escuro (desative o vidro para tema claro).");
+            return;
+        }
         switchTheme(THEME_LIGHT);
     }
 

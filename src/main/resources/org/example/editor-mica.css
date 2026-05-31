@@ -1,184 +1,180 @@
-/* Vidro tipo Explorador: quase transparente — o blur vem do DWM (Mica/Acrylic), não de cor sólida */
+/* Vidro escuro — legível. Com DWM ativo (.mica-live) fica quase transparente. */
 
 .mica-window.root {
-    -fx-background-color: transparent;
+    -fx-background-color: rgba(22, 24, 30, 0.55);
     -fx-background-insets: 0;
-    -fx-padding: 0;
 }
 
 .mica-window .app-chrome-top,
 .mica-window TabPane,
 .mica-window .tab-pane,
 .mica-window .tab-pane > .tab-content-area,
-.mica-window .tab-pane:focused > .tab-content-area,
 .mica-window .editor-scroll,
 .mica-window .editor-scroll > .viewport,
-.mica-window .side-panel,
-.mica-window .glass-panel {
+.mica-window .scroll-pane,
+.mica-window .scroll-pane > .viewport {
     -fx-background-color: transparent;
-    -fx-background-insets: 0;
 }
 
 .mica-window .glass-panel {
     -fx-effect: null;
+    -fx-background-color: rgba(30, 33, 42, 0.5);
+    -fx-border-color: rgba(255, 255, 255, 0.1);
 }
 
-/* --- Tema escuro: toque mínimo de cor (só legibilidade do texto) --- */
-.mica-window:not(.mica-light) .menu-bar,
-.mica-window:not(.mica-light) .tool-bar,
-.mica-window:not(.mica-light) .status-bar {
-    -fx-background-color: rgba(0, 0, 0, 0.12);
-    -fx-border-color: rgba(255, 255, 255, 0.06);
+.mica-window .menu-bar,
+.mica-window .tool-bar,
+.mica-window .status-bar {
+    -fx-background-color: rgba(28, 30, 38, 0.45);
+    -fx-border-color: rgba(255, 255, 255, 0.08);
 }
 
-.mica-window:not(.mica-light) .menu-bar .label,
-.mica-window:not(.mica-light) .menu-bar .menu .label,
-.mica-window:not(.mica-light) .tool-bar .button {
-    -fx-text-fill: #f8fafc;
-}
-
-.mica-window:not(.mica-light) .tb-icon {
-    -fx-background-color: #f8fafc;
-}
-
-.mica-window:not(.mica-light) .status-bar .label {
-    -fx-text-fill: #e2e8f0;
-}
-
-.mica-window:not(.mica-light) .tab-header-area .tab-header-background {
-    -fx-background-color: rgba(0, 0, 0, 0.1);
-}
-
-.mica-window:not(.mica-light) .tab-pane .tab {
-    -fx-background-color: rgba(0, 0, 0, 0.08);
-}
-
-.mica-window:not(.mica-light) .tab-pane .tab:selected {
-    -fx-background-color: rgba(0, 0, 0, 0.18);
-    -fx-border-color: rgba(147, 197, 253, 0.45);
-    -fx-border-width: 0 0 2 0;
-}
-
-.mica-window:not(.mica-light) .tab-pane .tab-label {
-    -fx-text-fill: #e2e8f0;
-}
-
-.mica-window:not(.mica-light) .code-area,
-.mica-window:not(.mica-light) .text-area,
-.mica-window:not(.mica-light) .code-area .content,
-.mica-window:not(.mica-light) .code-area .paragraph-box .text {
-    -fx-background-color: transparent;
-}
-
-.mica-window:not(.mica-light) .code-area .text,
-.mica-window:not(.mica-light) .text-area .text {
-    -fx-fill: #f1f5f9;
-}
-
-.mica-window:not(.mica-light) .lineno {
-    -fx-background-color: rgba(0, 0, 0, 0.15);
-    -fx-text-fill: #94a3b8;
-}
-
-.mica-window:not(.mica-light) .side-panel .panel-title {
-    -fx-text-fill: #f8fafc;
-}
-
-.mica-window:not(.mica-light) .side-panel .panel-label,
-.mica-window:not(.mica-light) .side-panel .panel-hint {
-    -fx-text-fill: #cbd5e1;
-}
-
-.mica-window:not(.mica-light) .calendar-day {
-    -fx-background-color: rgba(0, 0, 0, 0.12);
-}
-
-.mica-window:not(.mica-light) .calendar-day-selected {
-    -fx-background-color: rgba(59, 130, 246, 0.35);
-}
-
-.mica-window:not(.mica-light) .calendar-day-num {
-    -fx-text-fill: #e2e8f0;
-}
-
-.mica-window:not(.mica-light) .context-menu {
-    -fx-background-color: rgba(30, 32, 38, 0.88);
-}
-
-.mica-window:not(.mica-light) .menu-item .label,
-.mica-window:not(.mica-light) .radio-menu-item .label,
-.mica-window:not(.mica-light) .check-menu-item .label {
+.mica-window .menu-bar .label,
+.mica-window .menu-bar .menu .label,
+.mica-window .tool-bar .button {
     -fx-text-fill: #f1f5f9;
 }
 
-/* --- Tema claro --- */
-.mica-window.mica-light .menu-bar,
-.mica-window.mica-light .tool-bar,
-.mica-window.mica-light .status-bar {
-    -fx-background-color: rgba(255, 255, 255, 0.14);
-    -fx-border-color: rgba(0, 0, 0, 0.05);
+.mica-window .tb-icon {
+    -fx-background-color: #f1f5f9;
 }
 
-.mica-window.mica-light .menu-bar .label,
-.mica-window.mica-light .menu-bar .menu .label,
-.mica-window.mica-light .tool-bar .button {
-    -fx-text-fill: #0f172a;
+.mica-window .status-bar .label {
+    -fx-text-fill: #e2e8f0;
 }
 
-.mica-window.mica-light .tb-icon {
-    -fx-background-color: #0f172a;
+.mica-window .tab-header-area .tab-header-background {
+    -fx-background-color: rgba(28, 30, 38, 0.4);
 }
 
-.mica-window.mica-light .status-bar .label {
-    -fx-text-fill: #1e293b;
+.mica-window .tab-pane .tab {
+    -fx-background-color: rgba(35, 38, 48, 0.35);
 }
 
-.mica-window.mica-light .tab-header-area .tab-header-background {
-    -fx-background-color: rgba(255, 255, 255, 0.12);
+.mica-window .tab-pane .tab:selected {
+    -fx-background-color: rgba(50, 54, 64, 0.55);
+    -fx-border-color: rgba(96, 165, 250, 0.6);
+    -fx-border-width: 0 0 2 0;
 }
 
-.mica-window.mica-light .tab-pane .tab {
-    -fx-background-color: rgba(255, 255, 255, 0.1);
+.mica-window .tab-pane .tab-label {
+    -fx-text-fill: #e2e8f0;
 }
 
-.mica-window.mica-light .tab-pane .tab:selected {
-    -fx-background-color: rgba(255, 255, 255, 0.22);
+.mica-window .tab-pane .tab:selected .tab-label {
+    -fx-text-fill: #ffffff;
 }
 
-.mica-window.mica-light .tab-pane .tab-label {
-    -fx-text-fill: #334155;
+.mica-window .code-area,
+.mica-window .text-area,
+.mica-window .code-area .content,
+.mica-window .code-area .paragraph-box .text {
+    -fx-background-color: rgba(15, 17, 22, 0.35);
 }
 
-.mica-window.mica-light .code-area,
-.mica-window.mica-light .text-area,
-.mica-window.mica-light .code-area .content {
+.mica-window .code-area .text,
+.mica-window .text-area .text {
+    -fx-fill: #f1f5f9;
+}
+
+.mica-window .lineno {
+    -fx-background-color: rgba(0, 0, 0, 0.25);
+    -fx-text-fill: #94a3b8;
+}
+
+.mica-window .side-panel .panel-title {
+    -fx-text-fill: #f8fafc;
+}
+
+.mica-window .side-panel .panel-label,
+.mica-window .side-panel .panel-hint {
+    -fx-text-fill: #cbd5e1;
+}
+
+.mica-window .calendar-month-title {
+    -fx-text-fill: #f1f5f9;
+}
+
+.mica-window .calendar-weekday {
+    -fx-text-fill: #94a3b8;
+}
+
+.mica-window .calendar-day {
+    -fx-background-color: rgba(0, 0, 0, 0.2);
+}
+
+.mica-window .calendar-day-num {
+    -fx-text-fill: #e2e8f0;
+}
+
+.mica-window .calendar-day-selected {
+    -fx-background-color: rgba(59, 130, 246, 0.45);
+}
+
+.mica-window .calendar-primary-btn,
+.mica-window .side-panel .button {
+    -fx-background-color: rgba(59, 130, 246, 0.85);
+    -fx-text-fill: white;
+}
+
+.mica-window .side-panel .combo-box,
+.mica-window .side-panel .date-picker,
+.mica-window .side-panel .list-view {
+    -fx-background-color: rgba(20, 22, 28, 0.55);
+}
+
+.mica-window .side-panel .combo-box .list-cell,
+.mica-window .side-panel .date-picker .text-field {
+    -fx-text-fill: #f1f5f9;
+}
+
+.mica-window .event-cell-title {
+    -fx-text-fill: #f1f5f9;
+}
+
+.mica-window .event-cell-time {
+    -fx-text-fill: #94a3b8;
+}
+
+.mica-window .context-menu {
+    -fx-background-color: rgba(35, 38, 48, 0.95);
+}
+
+.mica-window .menu-item .label,
+.mica-window .radio-menu-item .label,
+.mica-window .check-menu-item .label {
+    -fx-text-fill: #f1f5f9;
+}
+
+/* DWM ativo: quase invisível — papel de parede + blur do Windows */
+.mica-window.mica-live.root {
     -fx-background-color: transparent;
 }
 
-.mica-window.mica-light .code-area .text,
-.mica-window.mica-light .text-area .text {
-    -fx-fill: #0f172a;
+.mica-window.mica-live .menu-bar,
+.mica-window.mica-live .tool-bar,
+.mica-window.mica-live .status-bar {
+    -fx-background-color: rgba(0, 0, 0, 0.08);
 }
 
-.mica-window.mica-light .lineno {
-    -fx-background-color: rgba(255, 255, 255, 0.12);
-    -fx-text-fill: #64748b;
+.mica-window.mica-live .tab-header-area .tab-header-background {
+    -fx-background-color: rgba(0, 0, 0, 0.06);
 }
 
-.mica-window.mica-light .side-panel .panel-title {
-    -fx-text-fill: #0f172a;
+.mica-window.mica-live .tab-pane .tab {
+    -fx-background-color: rgba(0, 0, 0, 0.05);
 }
 
-.mica-window.mica-light .side-panel .panel-label {
-    -fx-text-fill: #475569;
+.mica-window.mica-live .code-area,
+.mica-window.mica-live .text-area,
+.mica-window.mica-live .code-area .content {
+    -fx-background-color: transparent;
 }
 
-.mica-window.mica-light .context-menu {
-    -fx-background-color: rgba(255, 255, 255, 0.92);
+.mica-window.mica-live .glass-panel {
+    -fx-background-color: rgba(0, 0, 0, 0.1);
 }
 
-.mica-window.mica-light .menu-item .label,
-.mica-window.mica-light .radio-menu-item .label,
-.mica-window.mica-light .check-menu-item .label {
-    -fx-text-fill: #111827;
+.mica-window.mica-live .calendar-day {
+    -fx-background-color: rgba(0, 0, 0, 0.1);
 }

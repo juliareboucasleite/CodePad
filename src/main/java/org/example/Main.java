@@ -12,9 +12,9 @@ public class Main extends Application {
     @Override
     public void start(Stage stage) throws Exception {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("editor.fxml"));
-
-        Scene scene = new Scene(loader.load());
-        scene.setFill(Color.TRANSPARENT);
+        javafx.scene.Parent root = loader.load();
+        Scene scene = new Scene(root);
+        scene.setFill(Color.web("#2b2f36"));
         stage.setTitle("CodePad — Notas e planejamento");
         stage.getIcons().add(new Image(getClass().getResourceAsStream("codePadLogo.png")));
         stage.setScene(scene);
