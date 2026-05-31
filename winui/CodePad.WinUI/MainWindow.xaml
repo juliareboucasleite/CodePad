@@ -1,0 +1,54 @@
+<Window
+    x:Class="CodePad.WinUI.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="CodePad — Notas e planejamento (WinUI)"
+    ExtendsContentIntoTitleBar="True">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="BaseAlt" />
+    </Window.SystemBackdrop>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid x:Name="TitleBarHost" Grid.Row="0" Height="48" Padding="12,0,12,0">
+            <TextBlock Text="CodePad" VerticalAlignment="Center" FontWeight="SemiBold" />
+        </Grid>
+
+        <NavigationView x:Name="Nav" Grid.Row="1" IsBackButtonVisible="Collapsed" PaneDisplayMode="Left">
+            <NavigationView.MenuItems>
+                <NavigationViewItem Content="Notas" Icon="Document" />
+                <NavigationViewItem Content="Planejamento" Icon="Calendar" />
+            </NavigationView.MenuItems>
+
+            <Grid Padding="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="280" />
+                </Grid.ColumnDefinitions>
+
+                <TextBox x:Name="Editor"
+                         Grid.Column="0"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         PlaceholderText="Notas…"
+                         FontFamily="Segoe UI"
+                         FontSize="14"
+                         BorderThickness="0"
+                         Background="Transparent" />
+
+                <StackPanel Grid.Column="1" Spacing="8" Padding="12,0,0,0">
+                    <TextBlock Text="Planejamento" FontWeight="SemiBold" />
+                    <TextBlock Text="Calendário e eventos — a migrar do Java."
+                               Opacity="0.8"
+                               TextWrapping="Wrap" />
+                    <Button Content="+ Novo evento" HorizontalAlignment="Stretch" />
+                </StackPanel>
+            </Grid>
+        </NavigationView>
+    </Grid>
+</Window>
