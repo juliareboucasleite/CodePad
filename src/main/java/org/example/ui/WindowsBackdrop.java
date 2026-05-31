@@ -76,11 +76,34 @@ public final class WindowsBackdrop {
         }
         WinDef.HWND hWnd = new WinDef.HWND(com.sun.jna.Pointer.createConstant(hwnd));
         setIntAttribute(hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, darkMode ? 1 : 0);
-        int hr = setIntAttribute(hWnd, DWMWA_SYSTEMBACKDROP_TYPE, backdrop.dwmsbtValue);
-        if (hr != 0 && backdrop == Backdrop.MICA) {
-            setIntAttribute(hWnd, DWMWA_SYSTEMBACKDROP_TYPE, Backdrop.MICA_ALT.dwmsbtValue);
-        }
+        applyBackdropType(hWnd, backdrop);
         return true;
+    }
+
+    /** Mica → Mica Alt → Acrylic (blur mais visível, como o utilizador espera). */
+    private static void applyBackdropType(WinDef.HWND hWnd, Backdrop preferred) {
+        int[] order = switch (preferred) {
+            case ACRYLIC -> new int[]{
+                    Backdrop.ACRYLIC.dwmsbtValue,
+                    Backdrop.MICA.dwmsbtValue,
+                    Backdrop.MICA_ALT.dwmsbtValue
+            };
+            case MICA_ALT -> new int[]{
+                    Backdrop.MICA_ALT.dwmsbtValue,
+                    Backdrop.MICA.dwmsbtValue,
+                    Backdrop.ACRYLIC.dwmsbtValue
+            };
+            default -> new int[]{
+                    Backdrop.MICA.dwmsbtValue,
+                    Backdrop.MICA_ALT.dwmsbtValue,
+                    Backdrop.ACRYLIC.dwmsbtValue
+            };
+        };
+        for (int type : order) {
+            if (setIntAttribute(hWnd, DWMWA_SYSTEMBACKDROP_TYPE, type) == 0) {
+                return;
+            }
+        }
     }
 
     private static void scheduleApply(Stage stage, boolean darkMode, Backdrop backdrop, int attempt) {

@@ -791,6 +791,9 @@ public class EditorController {
         CodeArea area = new CodeArea();
         boolean codeMode = miModeCode != null && miModeCode.isSelected();
         area.getStyleClass().add(codeMode ? "code-area" : "text-area");
+        if (micaEnabled) {
+            area.getStyleClass().add("mica-editor");
+        }
         area.setParagraphGraphicFactory(LineNumberFactory.get(area));
 
         TabData data = new TabData();
@@ -1112,8 +1115,9 @@ public class EditorController {
         }
         String family = codeMode ? codeFontFamily : textFontFamily;
         String escaped = family.replace("\\", "\\\\").replace("\"", "\\\"");
+        String bg = micaEnabled ? "-fx-background-color: transparent; " : "";
         area.setStyle(String.format(Locale.ROOT,
-                "-fx-font-family: \"%s\"; -fx-font-size: %.0fpx;", escaped, fontSize));
+                "%s-fx-font-family: \"%s\"; -fx-font-size: %.0fpx;", bg, escaped, fontSize));
     }
 
     private void applyEditorStyleAll() {
@@ -1817,14 +1821,13 @@ public class EditorController {
             if (!root.getStyleClass().contains("mica-window")) {
                 root.getStyleClass().add("mica-window");
             }
-            if (!root.getStyleClass().contains("glass-chrome")) {
-                root.getStyleClass().add("glass-chrome");
-            }
+            root.getStyleClass().remove("glass-chrome");
             ensureMicaStylesheet();
             syncMicaThemeClass();
             applyWindowsBackdrop();
         } else {
-            root.getStyleClass().removeAll("mica-window", "mica-light", "mica-fallback", "glass-chrome");
+            root.getStyleClass().removeAll("mica-window", "mica-light", "glass-chrome");
+            root.setStyle("");
             removeMicaStylesheet();
             if (mainStage != null) {
                 WindowsBackdrop.apply(mainStage, isDarkTheme(), WindowsBackdrop.Backdrop.NONE);
@@ -1842,9 +1845,8 @@ public class EditorController {
             return;
         }
         micaStylesheetUrl = url.toExternalForm();
-        if (!root.getStylesheets().contains(micaStylesheetUrl)) {
-            root.getStylesheets().add(micaStylesheetUrl);
-        }
+        root.getStylesheets().remove(micaStylesheetUrl);
+        root.getStylesheets().add(micaStylesheetUrl);
     }
 
     private void removeMicaStylesheet() {
@@ -1875,32 +1877,14 @@ public class EditorController {
         }
     }
 
-    private void setMicaFallback(boolean enabled) {
-        if (root == null) {
-            return;
-        }
-        if (enabled) {
-            if (!root.getStyleClass().contains("mica-fallback")) {
-                root.getStyleClass().add("mica-fallback");
-            }
-        } else {
-            root.getStyleClass().remove("mica-fallback");
-        }
-        updateSceneFill();
-    }
-
     /**
-     * Com Mica ativo e HWND ok: cena transparente (blur do Windows aparece).
-     * Sem blur ou Mica desligado: fundo opaco do tema para não ficar branco/vazio.
+     * Com Mica ativo: cena sempre transparente para o DWM desfocar o papel de parede.
      */
     private void updateSceneFill() {
         if (mainStage == null || mainStage.getScene() == null) {
             return;
         }
-        boolean transparentMica = micaEnabled
-                && root != null
-                && !root.getStyleClass().contains("mica-fallback");
-        if (transparentMica) {
+        if (micaEnabled) {
             mainStage.getScene().setFill(Color.TRANSPARENT);
         } else if (isDarkTheme()) {
             mainStage.getScene().setFill(Color.web("#2b2f36"));
@@ -1909,37 +1893,60 @@ public class EditorController {
         }
     }
 
-    private void scheduleMicaFallbackCheck() {
-        if (mainStage == null || root == null || !micaEnabled) {
+    private void applyMicaVisuals() {
+        if (root == null) {
             return;
         }
-        javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(
-                javafx.util.Duration.millis(1200));
-        pause.setOnFinished(e -> {
-            if (!micaEnabled || mainStage == null || root == null) {
-                return;
+        if (micaEnabled) {
+            root.getStyleClass().remove("mica-fallback");
+            root.setStyle("-fx-background-color: transparent; -fx-background-insets: 0;");
+            applyEditorStyleAll();
+            for (Tab tab : tabPane.getTabs()) {
+                TabData data = (TabData) tab.getUserData();
+                if (data != null && data.area != null) {
+                    data.area.getStyleClass().add("mica-editor");
+                }
             }
-            boolean hasHandle = WindowsBackdrop.hasNativeHandle(mainStage);
-            if (!hasHandle) {
-                setMicaFallback(true);
-                return;
+        } else {
+            root.setStyle("");
+            for (Tab tab : tabPane.getTabs()) {
+                TabData data = (TabData) tab.getUserData();
+                if (data != null && data.area != null) {
+                    data.area.getStyleClass().remove("mica-editor");
+                }
             }
-            boolean applied = WindowsBackdrop.applyNow(mainStage, isDarkTheme(), WindowsBackdrop.Backdrop.MICA);
-            setMicaFallback(!applied);
-        });
-        pause.play();
+        }
+    }
+
+    private void scheduleBackdropReapply() {
+        if (mainStage == null || !micaEnabled) {
+            return;
+        }
+        for (int delayMs : new int[] {100, 350, 800, 1500}) {
+            javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(
+                    javafx.util.Duration.millis(delayMs));
+            pause.setOnFinished(e -> {
+                if (micaEnabled && mainStage != null) {
+                    WindowsBackdrop.applyNow(mainStage, isDarkTheme(), WindowsBackdrop.Backdrop.MICA);
+                    updateSceneFill();
+                    applyMicaVisuals();
+                }
+            });
+            pause.play();
+        }
     }
 
     private void applyWindowsBackdrop() {
         if (mainStage == null || !micaEnabled) {
             updateSceneFill();
+            applyMicaVisuals();
             return;
         }
         syncMicaThemeClass();
-        setMicaFallback(false);
         updateSceneFill();
+        applyMicaVisuals();
         WindowsBackdrop.apply(mainStage, isDarkTheme(), WindowsBackdrop.Backdrop.MICA);
-        scheduleMicaFallbackCheck();
+        scheduleBackdropReapply();
     }
 
     @FXML
@@ -2029,6 +2036,7 @@ public class EditorController {
             applyWindowsBackdrop();
         } else {
             updateSceneFill();
+            applyMicaVisuals();
         }
     }
 
