@@ -1,114 +1,152 @@
-/* Usado com Mica/Acrylic do Windows 11 — fundos transparentes para o blur aparecer */
+/* Mica: com blur DWM ativo a janela fica transparente; sem blur usa .mica-fallback (opaco). */
 
-.mica-window {
+.mica-window:not(.mica-fallback) {
     -fx-background-color: transparent;
 }
 
-.mica-window .menu-bar,
-.mica-window .tool-bar,
-.mica-window .status-bar {
-    -fx-background-color: rgba(255, 255, 255, 0.04);
-    -fx-border-color: rgba(255, 255, 255, 0.08);
+.mica-window.mica-fallback {
+    -fx-background-color: #2b2f36;
 }
 
-.mica-window .tab-pane,
-.mica-window .tab-pane > .tab-content-area,
-.mica-window .tab-pane:focused > .tab-content-area {
-    -fx-background-color: transparent;
+.mica-window.mica-fallback.mica-light {
+    -fx-background-color: #e5e7eb;
 }
 
-.mica-window .tab-header-area .tab-header-background {
-    -fx-background-color: rgba(255, 255, 255, 0.03);
-    -fx-border-color: rgba(255, 255, 255, 0.06);
-}
-
-.mica-window .tab-pane .tab {
-    -fx-background-color: rgba(255, 255, 255, 0.02);
-    -fx-border-color: transparent;
-}
-
-.mica-window .tab-pane .tab:selected {
-    -fx-background-color: rgba(255, 255, 255, 0.06);
-    -fx-border-color: rgba(147, 197, 253, 0.45);
-    -fx-border-width: 0 0 2 0;
-}
-
-.mica-window .editor-scroll,
-.mica-window .editor-scroll > .viewport {
-    -fx-background-color: transparent;
-}
-
-.mica-window .code-area,
-.mica-window .text-area {
-    -fx-background-color: rgba(25, 25, 30, 0.25);
-}
-
-.mica-window .code-area .content,
-.mica-window .code-area .paragraph-box .text {
-    -fx-background-color: transparent;
-}
-
-.mica-window .code-area .text,
-.mica-window .text-area .text {
-    -fx-fill: #f1f5f9;
-}
-
-.mica-window .lineno {
-    -fx-background-color: rgba(0, 0, 0, 0.18);
-    -fx-text-fill: #94a3b8;
-}
-
-.mica-window .glass-panel {
-    -fx-background-color: rgba(30, 30, 38, 0.45);
-    -fx-border-color: rgba(255, 255, 255, 0.12);
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.35), 12, 0.3, 0, 2);
-}
-
-.mica-window .side-panel .panel-title {
-    -fx-text-fill: #f8fafc;
-}
-
-.mica-window .side-panel .panel-label {
-    -fx-text-fill: #cbd5e1;
-}
-
-.mica-window .side-panel .panel-hint {
-    -fx-text-fill: #94a3b8;
-}
-
-.mica-window .menu-bar .label,
-.mica-window .tool-bar .button {
-    -fx-text-fill: #f1f5f9;
-}
-
-.mica-window .tb-icon {
-    -fx-background-color: #f1f5f9;
-}
-
-.mica-window .status-bar .label {
-    -fx-text-fill: #e2e8f0;
-}
-
-.mica-window .context-menu {
-    -fx-background-color: rgba(40, 40, 48, 0.92);
+/* --- Tema escuro (padrão do app com Mica) --- */
+.mica-window:not(.mica-light) .menu-bar,
+.mica-window:not(.mica-light) .tool-bar,
+.mica-window:not(.mica-light) .status-bar {
+    -fx-background-color: rgba(32, 35, 42, 0.78);
     -fx-border-color: rgba(255, 255, 255, 0.1);
 }
 
-.mica-window .menu-item .label {
+.mica-window:not(.mica-light) .menu-bar .label,
+.mica-window:not(.mica-light) .menu-bar .menu .label,
+.mica-window:not(.mica-light) .tool-bar .button {
     -fx-text-fill: #f1f5f9;
 }
 
-/* Tema claro com Mica (Explorador claro) */
+.mica-window:not(.mica-light) .tb-icon {
+    -fx-background-color: #f1f5f9;
+}
+
+.mica-window:not(.mica-light) .status-bar .label {
+    -fx-text-fill: #e2e8f0;
+}
+
+.mica-window:not(.mica-light) .tab-header-area .tab-header-background {
+    -fx-background-color: rgba(32, 35, 42, 0.72);
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+}
+
+.mica-window:not(.mica-light) .tab-pane .tab {
+    -fx-background-color: rgba(40, 44, 52, 0.6);
+}
+
+.mica-window:not(.mica-light) .tab-pane .tab:selected {
+    -fx-background-color: rgba(50, 54, 62, 0.9);
+    -fx-border-color: rgba(147, 197, 253, 0.55);
+    -fx-border-width: 0 0 2 0;
+}
+
+.mica-window:not(.mica-light) .tab-pane .tab-label {
+    -fx-text-fill: #e2e8f0;
+}
+
+.mica-window:not(.mica-light) .tab-pane .tab:selected .tab-label {
+    -fx-text-fill: #ffffff;
+}
+
+.mica-window:not(.mica-light) .code-area,
+.mica-window:not(.mica-light) .text-area {
+    -fx-background-color: rgba(31, 35, 41, 0.72);
+}
+
+.mica-window:not(.mica-light) .code-area .text,
+.mica-window:not(.mica-light) .text-area .text {
+    -fx-fill: #f1f5f9;
+}
+
+.mica-window:not(.mica-light) .lineno {
+    -fx-background-color: rgba(0, 0, 0, 0.28);
+    -fx-text-fill: #94a3b8;
+}
+
+.mica-window:not(.mica-light) .glass-panel {
+    -fx-background-color: rgba(35, 38, 48, 0.85);
+    -fx-border-color: rgba(255, 255, 255, 0.14);
+}
+
+.mica-window:not(.mica-light) .side-panel .panel-title {
+    -fx-text-fill: #f8fafc;
+}
+
+.mica-window:not(.mica-light) .side-panel .panel-label {
+    -fx-text-fill: #cbd5e1;
+}
+
+.mica-window:not(.mica-light) .side-panel .panel-hint {
+    -fx-text-fill: #94a3b8;
+}
+
+.mica-window:not(.mica-light) .side-panel .combo-box,
+.mica-window:not(.mica-light) .side-panel .date-picker {
+    -fx-background-color: rgba(22, 24, 30, 0.75);
+}
+
+.mica-window:not(.mica-light) .side-panel .combo-box .list-cell,
+.mica-window:not(.mica-light) .side-panel .date-picker .text-field {
+    -fx-text-fill: #f1f5f9;
+}
+
+.mica-window:not(.mica-light) .context-menu {
+    -fx-background-color: rgba(40, 44, 52, 0.97);
+    -fx-border-color: rgba(255, 255, 255, 0.12);
+}
+
+.mica-window:not(.mica-light) .menu-item .label,
+.mica-window:not(.mica-light) .radio-menu-item .label,
+.mica-window:not(.mica-light) .check-menu-item .label {
+    -fx-text-fill: #f1f5f9;
+}
+
+/* --- Tema claro (menu Tema Claro) --- */
 .mica-window.mica-light .menu-bar,
 .mica-window.mica-light .tool-bar,
 .mica-window.mica-light .status-bar {
-    -fx-background-color: rgba(255, 255, 255, 0.35);
-    -fx-border-color: rgba(0, 0, 0, 0.06);
+    -fx-background-color: rgba(255, 255, 255, 0.78);
+    -fx-border-color: rgba(0, 0, 0, 0.08);
+}
+
+.mica-window.mica-light .menu-bar .label,
+.mica-window.mica-light .menu-bar .menu .label,
+.mica-window.mica-light .tool-bar .button {
+    -fx-text-fill: #111827;
+}
+
+.mica-window.mica-light .tb-icon {
+    -fx-background-color: #111827;
+}
+
+.mica-window.mica-light .status-bar .label {
+    -fx-text-fill: #1f2937;
+}
+
+.mica-window.mica-light .tab-header-area .tab-header-background {
+    -fx-background-color: rgba(255, 255, 255, 0.72);
+}
+
+.mica-window.mica-light .tab-pane .tab-label {
+    -fx-text-fill: #374151;
+}
+
+.mica-window.mica-light .tab-pane .tab:selected .tab-label {
+    -fx-text-fill: #111827;
 }
 
 .mica-window.mica-light .code-area,
 .mica-window.mica-light .text-area {
-    -fx-background-color: rgba(255, 255, 255, 0.28);
+    -fx-background-color: rgba(255, 255, 255, 0.75);
 }
 
 .mica-window.mica-light .code-area .text,
@@ -116,11 +154,82 @@
     -fx-fill: #0f172a;
 }
 
-.mica-window.mica-light .menu-bar .label,
-.mica-window.mica-light .tool-bar .button {
+.mica-window.mica-light .glass-panel {
+    -fx-background-color: rgba(255, 255, 255, 0.88);
+    -fx-border-color: rgba(0, 0, 0, 0.08);
+}
+
+.mica-window.mica-light .side-panel .panel-title {
     -fx-text-fill: #111827;
 }
 
-.mica-window.mica-light .tb-icon {
-    -fx-background-color: #111827;
+.mica-window.mica-light .side-panel .panel-label {
+    -fx-text-fill: #4b5563;
+}
+
+.mica-window.mica-light .side-panel .panel-hint {
+    -fx-text-fill: #6b7280;
+}
+
+.mica-window.mica-light .context-menu {
+    -fx-background-color: rgba(255, 255, 255, 0.98);
+    -fx-border-color: rgba(0, 0, 0, 0.08);
+}
+
+.mica-window.mica-light .menu-item .label,
+.mica-window.mica-light .radio-menu-item .label,
+.mica-window.mica-light .check-menu-item .label {
+    -fx-text-fill: #111827;
+}
+
+/* Transparência só quando o blur DWM está ativo */
+.mica-window:not(.mica-fallback) .tab-pane,
+.mica-window:not(.mica-fallback) .tab-pane > .tab-content-area,
+.mica-window:not(.mica-fallback) .tab-pane:focused > .tab-content-area,
+.mica-window:not(.mica-fallback) .editor-scroll,
+.mica-window:not(.mica-fallback) .editor-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+/* Sem blur: tudo opaco (mesmas cores do editor-dark / editor-light) */
+.mica-window.mica-fallback:not(.mica-light) .menu-bar,
+.mica-window.mica-fallback:not(.mica-light) .tool-bar,
+.mica-window.mica-fallback:not(.mica-light) .status-bar,
+.mica-window.mica-fallback:not(.mica-light) .tab-header-area .tab-header-background,
+.mica-window.mica-fallback:not(.mica-light) .tab-pane,
+.mica-window.mica-fallback:not(.mica-light) .tab-pane .tab,
+.mica-window.mica-fallback:not(.mica-light) .code-area,
+.mica-window.mica-fallback:not(.mica-light) .text-area {
+    -fx-background-color: #2b2f36;
+}
+
+.mica-window.mica-fallback:not(.mica-light) .tab-pane .tab:selected {
+    -fx-background-color: #1f2329;
+}
+
+.mica-window.mica-fallback:not(.mica-light) .code-area,
+.mica-window.mica-fallback:not(.mica-light) .text-area {
+    -fx-background-color: #1f2329;
+}
+
+.mica-window.mica-fallback:not(.mica-light) .glass-panel {
+    -fx-background-color: rgba(43, 47, 54, 0.95);
+}
+
+.mica-window.mica-fallback.mica-light .menu-bar,
+.mica-window.mica-fallback.mica-light .tool-bar,
+.mica-window.mica-fallback.mica-light .status-bar,
+.mica-window.mica-fallback.mica-light .tab-pane,
+.mica-window.mica-fallback.mica-light .code-area,
+.mica-window.mica-fallback.mica-light .text-area {
+    -fx-background-color: #e5e7eb;
+}
+
+.mica-window.mica-fallback.mica-light .code-area,
+.mica-window.mica-fallback.mica-light .text-area {
+    -fx-background-color: #ffffff;
+}
+
+.mica-window.mica-fallback.mica-light .glass-panel {
+    -fx-background-color: rgba(255, 255, 255, 0.95);
 }

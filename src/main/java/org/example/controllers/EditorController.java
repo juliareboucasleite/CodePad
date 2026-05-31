@@ -299,7 +299,7 @@ public class EditorController {
     @FXML
     private MenuItem miOpenReleases;
 
-    private final UpdateService updateService = new UpdateService();
+    private UpdateService updateService;
     private int untitledCount = 1;
     private String currentTheme = THEME_DARK;
     private Stage mainStage;
@@ -393,7 +393,6 @@ public class EditorController {
             syncFontControls(newTab);
         });
         startAutoSave();
-        checkForUpdatesAsync();
     }
 
     private void setupSidePanel() {
@@ -1519,10 +1518,11 @@ public class EditorController {
             if (root != null) {
                 root.getStyleClass().removeAll("mica-window", "mica-light", "glass-chrome");
             }
-            return;
+        } else {
+            boolean enable = miGlassStyle == null || miGlassStyle.isSelected();
+            setMicaEnabled(enable);
         }
-        boolean enable = miGlassStyle == null || miGlassStyle.isSelected();
-        setMicaEnabled(enable);
+        checkForUpdatesAsync();
     }
 
     private void setMicaEnabled(boolean enabled) {
@@ -1541,11 +1541,12 @@ public class EditorController {
             syncMicaThemeClass();
             applyWindowsBackdrop();
         } else {
-            root.getStyleClass().removeAll("mica-window", "mica-light", "glass-chrome");
+            root.getStyleClass().removeAll("mica-window", "mica-light", "mica-fallback", "glass-chrome");
             removeMicaStylesheet();
             if (mainStage != null) {
                 WindowsBackdrop.apply(mainStage, isDarkTheme(), WindowsBackdrop.Backdrop.NONE);
             }
+            updateSceneFill();
         }
     }
 
@@ -1573,22 +1574,89 @@ public class EditorController {
         return THEME_DARK.equals(currentTheme);
     }
 
+    /** Chrome Mica segue o tema escolhido no menu (Tema Claro / Tema Escuro). */
+    private boolean isMicaLightChrome() {
+        return !isDarkTheme();
+    }
+
     private void syncMicaThemeClass() {
         if (root == null) {
             return;
         }
-        if (isDarkTheme()) {
+        if (isMicaLightChrome()) {
+            if (!root.getStyleClass().contains("mica-light")) {
+                root.getStyleClass().add("mica-light");
+            }
+        } else {
             root.getStyleClass().remove("mica-light");
-        } else if (!root.getStyleClass().contains("mica-light")) {
-            root.getStyleClass().add("mica-light");
         }
+    }
+
+    private void setMicaFallback(boolean enabled) {
+        if (root == null) {
+            return;
+        }
+        if (enabled) {
+            if (!root.getStyleClass().contains("mica-fallback")) {
+                root.getStyleClass().add("mica-fallback");
+            }
+        } else {
+            root.getStyleClass().remove("mica-fallback");
+        }
+        updateSceneFill();
+    }
+
+    /**
+     * Com Mica ativo e HWND ok: cena transparente (blur do Windows aparece).
+     * Sem blur ou Mica desligado: fundo opaco do tema para não ficar branco/vazio.
+     */
+    private void updateSceneFill() {
+        if (mainStage == null || mainStage.getScene() == null) {
+            return;
+        }
+        boolean transparentMica = micaEnabled
+                && root != null
+                && !root.getStyleClass().contains("mica-fallback");
+        if (transparentMica) {
+            mainStage.getScene().setFill(Color.TRANSPARENT);
+        } else if (isDarkTheme()) {
+            mainStage.getScene().setFill(Color.web("#2b2f36"));
+        } else {
+            mainStage.getScene().setFill(Color.web("#e5e7eb"));
+        }
+    }
+
+    private void scheduleMicaFallbackCheck() {
+        if (mainStage == null || root == null || !micaEnabled) {
+            return;
+        }
+        javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(
+                javafx.util.Duration.millis(1200));
+        pause.setOnFinished(e -> {
+            if (!micaEnabled || mainStage == null || root == null) {
+                return;
+            }
+            boolean hasHandle = WindowsBackdrop.hasNativeHandle(mainStage);
+            if (!hasHandle) {
+                setMicaFallback(true);
+                return;
+            }
+            boolean applied = WindowsBackdrop.applyNow(mainStage, isDarkTheme(), WindowsBackdrop.Backdrop.MICA);
+            setMicaFallback(!applied);
+        });
+        pause.play();
     }
 
     private void applyWindowsBackdrop() {
         if (mainStage == null || !micaEnabled) {
+            updateSceneFill();
             return;
         }
+        syncMicaThemeClass();
+        setMicaFallback(false);
+        updateSceneFill();
         WindowsBackdrop.apply(mainStage, isDarkTheme(), WindowsBackdrop.Backdrop.MICA);
+        scheduleMicaFallbackCheck();
     }
 
     @FXML
@@ -1676,6 +1744,8 @@ public class EditorController {
             ensureMicaStylesheet();
             syncMicaThemeClass();
             applyWindowsBackdrop();
+        } else {
+            updateSceneFill();
         }
     }
 
@@ -1864,6 +1934,13 @@ public class EditorController {
         }
     }
 
+    private UpdateService updates() {
+        if (updateService == null) {
+            updateService = new UpdateService();
+        }
+        return updateService;
+    }
+
     private void checkForUpdatesAsync() {
         runUpdateCheck(false);
     }
@@ -1871,7 +1948,7 @@ public class EditorController {
     private void runUpdateCheck(boolean manual) {
         new Thread(() -> {
             try {
-                Optional<UpdateService.ReleaseInfo> update = updateService.findUpdate(appVersion);
+                Optional<UpdateService.ReleaseInfo> update = updates().findUpdate(appVersion);
                 Platform.runLater(() -> {
                     if (update.isPresent()) {
                         showUpdateDialog(update.get());
@@ -1891,7 +1968,7 @@ public class EditorController {
     private void showUpToDateMessage() {
         String latestTag = appVersion;
         try {
-            Optional<UpdateService.ReleaseInfo> latest = updateService.fetchLatestRelease();
+            Optional<UpdateService.ReleaseInfo> latest = updates().fetchLatestRelease();
             if (latest.isPresent()) {
                 latestTag = latest.get().tag();
             }
@@ -1971,8 +2048,8 @@ public class EditorController {
         Task<Path> task = new Task<>() {
             @Override
             protected Path call() throws Exception {
-                Path dir = updateService.defaultDownloadDir();
-                return updateService.downloadAsset(release, dir, (downloaded, total) -> {
+                Path dir = updates().defaultDownloadDir();
+                return updates().downloadAsset(release, dir, (downloaded, total) -> {
                     if (total > 0) {
                         updateProgress(downloaded, total);
                         updateMessage(formatBytes(downloaded) + " / " + formatBytes(total));

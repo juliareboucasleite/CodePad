@@ -108,8 +108,9 @@ $dest = "dist\installer"
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
 $installerOut = Join-Path $dest "CodePad-$version.exe"
 Get-ChildItem -Path $dest -Filter "CodePad-*.exe" -File -ErrorAction SilentlyContinue | ForEach-Object {
-    $_.IsReadOnly = $false
-    Remove-Item -Force $_.FullName
+  if ($_.Name -eq "CodePad-$version.exe") { return }
+  $_.IsReadOnly = $false
+  Remove-Item -Force $_.FullName -ErrorAction SilentlyContinue
 }
 
 $iconArg = @()
@@ -134,7 +135,7 @@ $javaOpts = @(
     --main-jar $jarName `
     --main-class "org.example.Main" `
     --module-path "target\javafx" `
-    --add-modules "javafx.controls,javafx.fxml,javafx.graphics,javafx.base" `
+    --add-modules "javafx.controls,javafx.fxml,javafx.graphics,javafx.base,java.logging" `
     --win-menu --win-shortcut --win-dir-chooser `
     --win-menu-group "CodePad" `
     --install-dir "CodePad" `

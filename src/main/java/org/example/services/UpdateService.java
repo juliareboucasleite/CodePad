@@ -3,14 +3,12 @@ package org.example.services;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,6 +20,7 @@ import java.util.regex.Pattern;
 
 /**
  * Consulta releases no GitHub e baixa o instalador Windows (EXE).
+ * Usa {@link HttpURLConnection} (java.base) para funcionar no runtime empacotado pelo jpackage.
  */
 public class UpdateService {
 
@@ -30,6 +29,9 @@ public class UpdateService {
     private static final String UPDATE_API =
             "https://api.github.com/repos/juliareboucasleite/CodePad/releases/latest";
     private static final String USER_AGENT = "CodePad-Updater";
+    private static final int CONNECT_TIMEOUT_MS = 10_000;
+    private static final int READ_TIMEOUT_MS = 20_000;
+    private static final int DOWNLOAD_READ_TIMEOUT_MS = 15 * 60 * 1000;
 
     public record ReleaseAsset(String name, String downloadUrl) {
     }
@@ -58,19 +60,6 @@ public class UpdateService {
         void onProgress(long downloaded, long total);
     }
 
-    private final HttpClient client;
-
-    public UpdateService() {
-        this(HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .build());
-    }
-
-    public UpdateService(HttpClient client) {
-        this.client = client;
-    }
-
     public static Platform detectPlatform() {
         String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         if (os.contains("win")) {
@@ -85,27 +74,17 @@ public class UpdateService {
         return Platform.UNKNOWN;
     }
 
-    public Optional<ReleaseInfo> fetchLatestRelease() throws IOException, InterruptedException {
+    public Optional<ReleaseInfo> fetchLatestRelease() throws IOException {
         return fetchLatestRelease(null);
     }
 
-    public Optional<ReleaseInfo> fetchLatestRelease(Platform forcePlatform)
-            throws IOException, InterruptedException {
-        HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create(UPDATE_API))
-                .timeout(Duration.ofSeconds(20))
-                .header("Accept", "application/vnd.github+json")
-                .header("User-Agent", USER_AGENT)
-                .GET()
-                .build();
-        HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());
-        if (res.statusCode() != 200) {
-            throw new IOException("GitHub API respondeu " + res.statusCode());
-        }
-        return parseReleaseResponse(res.body(), forcePlatform);
+    public Optional<ReleaseInfo> fetchLatestRelease(Platform forcePlatform) throws IOException {
+        String body = httpGet(UPDATE_API, READ_TIMEOUT_MS, Map.of(
+                "Accept", "application/vnd.github+json"));
+        return parseReleaseResponse(body, forcePlatform);
     }
 
-    public Optional<ReleaseInfo> findUpdate(String currentVersion) throws IOException, InterruptedException {
+    public Optional<ReleaseInfo> findUpdate(String currentVersion) throws IOException {
         Optional<ReleaseInfo> latest = fetchLatestRelease();
         if (latest.isEmpty()) {
             return Optional.empty();
@@ -155,8 +134,7 @@ public class UpdateService {
         return base;
     }
 
-    public Path downloadAsset(ReleaseInfo release, Path targetDir, DownloadProgress progress)
-            throws IOException, InterruptedException {
+    public Path downloadAsset(ReleaseInfo release, Path targetDir, DownloadProgress progress) throws IOException {
         if (release == null || release.asset() == null || release.downloadUrl() == null) {
             throw new IOException("Release sem arquivo para download.");
         }
@@ -169,32 +147,30 @@ public class UpdateService {
         return downloadUrl(release.downloadUrl(), target, progress);
     }
 
-    public Path downloadUrl(String url, Path target, DownloadProgress progress)
-            throws IOException, InterruptedException {
-        HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofMinutes(15))
-                .header("User-Agent", USER_AGENT)
-                .GET()
-                .build();
-        HttpResponse<InputStream> res = client.send(req, HttpResponse.BodyHandlers.ofInputStream());
-        if (res.statusCode() >= 400) {
-            throw new IOException("Download falhou (HTTP " + res.statusCode() + ")");
-        }
-        long total = res.headers().firstValueAsLong("Content-Length").orElse(-1L);
-        try (InputStream in = res.body();
-             OutputStream out = Files.newOutputStream(target, StandardOpenOption.CREATE,
-                     StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE)) {
-            byte[] buffer = new byte[8192];
-            long downloaded = 0;
-            int read;
-            while ((read = in.read(buffer)) >= 0) {
-                out.write(buffer, 0, read);
-                downloaded += read;
-                if (progress != null) {
-                    progress.onProgress(downloaded, total);
+    public Path downloadUrl(String url, Path target, DownloadProgress progress) throws IOException {
+        HttpURLConnection conn = openConnection(url, DOWNLOAD_READ_TIMEOUT_MS);
+        try {
+            int code = conn.getResponseCode();
+            if (code >= 400) {
+                throw new IOException("Download falhou (HTTP " + code + ")");
+            }
+            long total = conn.getHeaderFieldLong("Content-Length", -1L);
+            try (InputStream in = conn.getInputStream();
+                 OutputStream out = Files.newOutputStream(target, StandardOpenOption.CREATE,
+                         StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE)) {
+                byte[] buffer = new byte[8192];
+                long downloaded = 0;
+                int read;
+                while ((read = in.read(buffer)) >= 0) {
+                    out.write(buffer, 0, read);
+                    downloaded += read;
+                    if (progress != null) {
+                        progress.onProgress(downloaded, total);
+                    }
                 }
             }
+        } finally {
+            conn.disconnect();
         }
         return target;
     }
@@ -220,6 +196,34 @@ public class UpdateService {
             case MAC -> "macOS";
             case UNKNOWN -> "sistema atual";
         };
+    }
+
+    private static String httpGet(String url, int readTimeoutMs, Map<String, String> headers) throws IOException {
+        HttpURLConnection conn = openConnection(url, readTimeoutMs);
+        try {
+            for (Map.Entry<String, String> h : headers.entrySet()) {
+                conn.setRequestProperty(h.getKey(), h.getValue());
+            }
+            int code = conn.getResponseCode();
+            if (code != 200) {
+                throw new IOException("GitHub API respondeu " + code);
+            }
+            try (InputStream in = conn.getInputStream()) {
+                return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            }
+        } finally {
+            conn.disconnect();
+        }
+    }
+
+    private static HttpURLConnection openConnection(String url, int readTimeoutMs) throws IOException {
+        HttpURLConnection conn = (HttpURLConnection) URI.create(url).toURL().openConnection();
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+        conn.setReadTimeout(readTimeoutMs);
+        conn.setInstanceFollowRedirects(true);
+        conn.setRequestProperty("User-Agent", USER_AGENT);
+        return conn;
     }
 
     private Optional<ReleaseInfo> parseReleaseResponse(String json, Platform forcePlatform) {

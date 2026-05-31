@@ -125,7 +125,7 @@ if ($ico) {
     --main-jar $jarName `
     --main-class "org.example.Main" `
     --module-path "target\javafx" `
-    --add-modules "javafx.controls,javafx.fxml,javafx.graphics,javafx.base" `
+    --add-modules "javafx.controls,javafx.fxml,javafx.graphics,javafx.base,java.logging" `
     @iconArg
 
 if ($LASTEXITCODE -ne 0) {
