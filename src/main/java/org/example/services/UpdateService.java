@@ -72,8 +72,6 @@ public class UpdateService {
     }
 
     public static Platform detectPlatform() {
-        String vm = System.getProperty("java.vm.name", "").toLowerCase(Locale.ROOT);
-        String vendor = System.getProperty("java.vm.vendor", "").toLowerCase(Locale.ROOT);
         String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         if (os.contains("win")) {
             return Platform.WINDOWS;
