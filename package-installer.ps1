@@ -117,6 +117,13 @@ if (Test-Path $ico) {
     $iconArg = @("--icon", (Resolve-Path $ico))
 }
 
+$javaOpts = @(
+    "--add-opens=javafx.graphics/com.sun.javafx.stage=ALL-UNNAMED",
+    "--add-opens=javafx.graphics/com.sun.javafx.tk.quantum=ALL-UNNAMED",
+    "--add-opens=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED",
+    "--add-opens=javafx.graphics/com.sun.glass.ui.win=ALL-UNNAMED"
+)
+
 & $jpackage `
     --type exe `
     --dest $dest `
@@ -132,7 +139,8 @@ if (Test-Path $ico) {
     --win-menu-group "CodePad" `
     --install-dir "CodePad" `
     --win-per-user-install `
-    @iconArg
+    @iconArg `
+    @javaOpts
 
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
