@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CodePad</string>
+    <string name="notes_hint">Anotações e plano do dia…</string>
+    <string name="insert_date">Inserir data</string>
+    <string name="insert_task">Inserir tarefa</string>
+</resources>
