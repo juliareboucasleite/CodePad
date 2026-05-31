@@ -1,6 +1,7 @@
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using CodePad.WinUI.Models;
 using CodePad.WinUI.Services;
 using Windows.Storage;
@@ -16,19 +17,30 @@ public sealed partial class MainWindow : Window
     private bool _draftsDirty;
     private int _untitled = 1;
     private TextBlock? _caretText;
+    private bool _initialized;
 
     public MainWindow()
     {
         InitializeComponent();
-        SystemBackdrop = new MicaBackdrop();
+        SystemBackdrop = new MicaBackdrop { Kind = MicaKind.BaseAlt };
 
         _autosaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
         _autosaveTimer.Tick += (_, _) => { if (_draftsDirty) PersistDrafts(); };
         _autosaveTimer.Start();
 
         WireChrome();
-        Loaded += MainWindow_Loaded;
+        Activated += MainWindow_Activated;
         Closed += MainWindow_Closed;
+    }
+
+    private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
+    {
+        if (_initialized || args.WindowActivationState == WindowActivationState.Deactivated)
+        {
+            return;
+        }
+        _initialized = true;
+        MainWindow_Loaded();
     }
 
     private void WireChrome()
@@ -77,7 +89,7 @@ public sealed partial class MainWindow : Window
         ((Grid)Content).Children.Add(statusRow);
     }
 
-    private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    private void MainWindow_Loaded()
     {
         var loaded = _drafts.Load();
         if (loaded.Count > 0)
