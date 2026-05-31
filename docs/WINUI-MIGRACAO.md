@@ -40,12 +40,18 @@ Requisitos: Windows 11, Visual Studio 2022 **ou** Build Tools com workload **Win
 ```powershell
 cd j:\ProjetosJava\CodePad\winui
 .\package-winui.ps1
-# ou, após build:
-cd CodePad.WinUI
-dotnet run -c Release -p:Platform=x64
 ```
 
-Abra **Exibir → Vidro/Mica** não é necessário: o Mica vem sempre ativo nesta versão WinUI.
+Gera `dist\CodePad-WinUI.exe`. Requer **MSBuild do Visual Studio** (o `dotnet build` sozinho pode falhar no PriGen).
+
+O Mica vem sempre ativo nesta versão (não precisa de menu Vidro/Mica).
+
+### Funcionalidades (fase 1)
+
+- Mica nativo (`MicaBackdrop`)
+- Várias abas de notas (`TabView`)
+- Abrir / Salvar / Salvar como (.txt, .md)
+- Autosave a cada 30 s em `%LOCALAPPDATA%\CodePad\drafts.dat` (mesmo formato do app Java)
 
 Se `dotnet build` falhar:
 
