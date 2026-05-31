@@ -3,6 +3,9 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $root
 
+$version = & (Join-Path $root "scripts\Get-ProjectVersion.ps1")
+Write-Host "Versao do projeto: $version" -ForegroundColor DarkGray
+
 if (-not $env:JAVA_HOME) {
     Write-Host "JAVA_HOME nao definido. Configure para um JDK 17+ (com jpackage)." -ForegroundColor Yellow
     exit 1
@@ -85,7 +88,7 @@ Write-Host "Copiando dependencias..." -ForegroundColor Cyan
 & .\mvnw "-DincludeArtifactIds=javafx-controls,javafx-fxml,javafx-graphics,javafx-base" -Dclassifier=win `
     dependency:copy-dependencies -DoutputDirectory=target\javafx
 
-$jarName = "CodePad-1.2.1.jar"
+$jarName = "CodePad-$version.jar"
 $appDir = "target\app"
 if (Test-Path $appDir) {
     Remove-Item -Recurse -Force $appDir
@@ -103,7 +106,7 @@ if (-not (Test-Path $jpackage)) {
 Write-Host "Gerando instalador exe..." -ForegroundColor Cyan
 $dest = "dist\installer"
 New-Item -ItemType Directory -Force -Path $dest | Out-Null
-$installerOut = Join-Path $dest "CodePad-1.2.1.exe"
+$installerOut = Join-Path $dest "CodePad-$version.exe"
 Get-ChildItem -Path $dest -Filter "CodePad-*.exe" -File -ErrorAction SilentlyContinue | ForEach-Object {
     $_.IsReadOnly = $false
     Remove-Item -Force $_.FullName
@@ -120,7 +123,7 @@ if (Test-Path $ico) {
     --input $appDir `
     --name "CodePad" `
     --vendor "juliareboucasleite" `
-    --app-version "1.2.1" `
+    --app-version "$version" `
     --main-jar $jarName `
     --main-class "org.example.Main" `
     --module-path "target\javafx" `
