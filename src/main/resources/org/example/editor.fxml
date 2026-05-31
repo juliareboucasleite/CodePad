@@ -80,6 +80,9 @@
                             <RadioMenuItem fx:id="miThemeLight" text="Tema Claro" onAction="#handleThemeLight" selected="true" />
                             <RadioMenuItem fx:id="miThemeDark" text="Tema Escuro" onAction="#handleThemeDark" />
                             <SeparatorMenuItem />
+                            <CheckMenuItem fx:id="miGlassStyle" text="Estilo vidro (blur)" onAction="#handleGlassStyle" />
+                            <CheckMenuItem fx:id="miSidePanel" text="Painel lateral" onAction="#handleSidePanel" />
+                            <SeparatorMenuItem />
                             <MenuItem fx:id="miZoomIn" text="Zoom +" onAction="#handleZoomIn" />
                             <MenuItem fx:id="miZoomOut" text="Zoom -" onAction="#handleZoomOut" />
                             <MenuItem fx:id="miZoomReset" text="Zoom 100%" onAction="#handleZoomReset" />
@@ -158,6 +161,29 @@
     <center>
         <TabPane fx:id="tabPane" tabClosingPolicy="SELECTED_TAB" />
     </center>
+
+    <right>
+        <VBox fx:id="sidePanel" styleClass="glass-panel side-panel" prefWidth="260" spacing="10"
+              visible="false" managed="false">
+            <Label text="Fontes e calendário" styleClass="panel-title" />
+            <Label text="Fonte (código)" styleClass="panel-label" />
+            <ComboBox fx:id="cbCodeFont" prefWidth="220" />
+            <Label text="Fonte (texto)" styleClass="panel-label" />
+            <ComboBox fx:id="cbTextFont" prefWidth="220" />
+            <Label text="Tamanho da fonte" styleClass="panel-label" />
+            <HBox spacing="8" alignment="CENTER_LEFT">
+                <Slider fx:id="sliderFontSize" min="10" max="24" value="13"
+                        majorTickUnit="7" minorTickCount="0" showTickLabels="true"
+                        blockIncrement="1" HBox.hgrow="ALWAYS" />
+                <Label fx:id="lblFontSizeValue" text="13 px" minWidth="52" />
+            </HBox>
+            <Separator />
+            <Label text="Calendário" styleClass="panel-title" />
+            <DatePicker fx:id="datePicker" prefWidth="220" />
+            <Button text="Inserir data no cursor" onAction="#handleInsertDate" maxWidth="Infinity" />
+            <Label fx:id="lblSelectedDate" styleClass="panel-hint" wrapText="true" />
+        </VBox>
+    </right>
 
     <bottom>
         <HBox styleClass="status-bar" spacing="10">

@@ -39,6 +39,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
+import java.util.Locale;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collection;
@@ -68,6 +72,14 @@ public class EditorController {
     private static final double BASE_FONT_SIZE = 13.0;
     private static final double MIN_FONT_SIZE = 10.0;
     private static final double MAX_FONT_SIZE = 24.0;
+    private static final String DEFAULT_CODE_FONT = "JetBrains Mono";
+    private static final String DEFAULT_TEXT_FONT = "Segoe UI";
+    private static final List<String> CODE_FONT_CHOICES = List.of(
+            "JetBrains Mono", "Fira Code", "Consolas", "Monaco", "Courier New", "Cascadia Mono");
+    private static final List<String> TEXT_FONT_CHOICES = List.of(
+            "Segoe UI", "Montserrat", "Poppins", "Tahoma", "Arial", "Verdana");
+    private static final DateTimeFormatter INSERT_DATE_FORMAT =
+            DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.forLanguageTag("pt-BR"));
     private static final byte[] BOM_UTF8 = new byte[]{(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
     private static final byte[] BOM_UTF16_LE = new byte[]{(byte) 0xFF, (byte) 0xFE};
     private static final byte[] BOM_UTF16_BE = new byte[]{(byte) 0xFE, (byte) 0xFF};
@@ -164,6 +176,24 @@ public class EditorController {
     private Label lblEncoding;
     @FXML
     private Label lblZoom;
+    @FXML
+    private VBox sidePanel;
+    @FXML
+    private ComboBox<String> cbCodeFont;
+    @FXML
+    private ComboBox<String> cbTextFont;
+    @FXML
+    private Slider sliderFontSize;
+    @FXML
+    private Label lblFontSizeValue;
+    @FXML
+    private DatePicker datePicker;
+    @FXML
+    private Label lblSelectedDate;
+    @FXML
+    private CheckMenuItem miGlassStyle;
+    @FXML
+    private CheckMenuItem miSidePanel;
 
     @FXML
     private MenuItem miNewTab;
@@ -252,6 +282,8 @@ public class EditorController {
     private FileEncoding defaultEncoding = FileEncoding.UTF8;
     private LineEnding defaultLineEnding = LineEnding.CRLF;
     private double fontSize = BASE_FONT_SIZE;
+    private String codeFontFamily = DEFAULT_CODE_FONT;
+    private String textFontFamily = DEFAULT_TEXT_FONT;
 
     private static class TabData {
         CodeArea area;
@@ -303,6 +335,7 @@ public class EditorController {
         miEolWindows.setSelected(true);
 
         setupShortcuts();
+        setupSidePanel();
         appVersion = loadAppVersion();
         if (!loadDrafts()) {
             createNewTab();
@@ -318,9 +351,80 @@ public class EditorController {
             updateEncodingStatus();
             updateLineEndingStatus();
             updateZoomStatus();
+            syncFontControls(newTab);
         });
         startAutoSave();
         checkForUpdatesAsync();
+    }
+
+    private void setupSidePanel() {
+        if (cbCodeFont != null) {
+            cbCodeFont.getItems().setAll(CODE_FONT_CHOICES);
+            cbCodeFont.setValue(codeFontFamily);
+            cbCodeFont.valueProperty().addListener((obs, oldVal, newVal) -> {
+                if (newVal != null && !newVal.isBlank()) {
+                    codeFontFamily = newVal;
+                    applyEditorStyleAll();
+                }
+            });
+        }
+        if (cbTextFont != null) {
+            cbTextFont.getItems().setAll(TEXT_FONT_CHOICES);
+            cbTextFont.setValue(textFontFamily);
+            cbTextFont.valueProperty().addListener((obs, oldVal, newVal) -> {
+                if (newVal != null && !newVal.isBlank()) {
+                    textFontFamily = newVal;
+                    applyEditorStyleAll();
+                }
+            });
+        }
+        if (sliderFontSize != null) {
+            sliderFontSize.setValue(fontSize);
+            updateFontSizeLabel();
+            sliderFontSize.valueProperty().addListener((obs, oldVal, newVal) -> {
+                if (newVal != null) {
+                    setFontSize(newVal.doubleValue());
+                    updateFontSizeLabel();
+                }
+            });
+        }
+        if (datePicker != null) {
+            datePicker.setValue(LocalDate.now());
+            datePicker.valueProperty().addListener((obs, oldVal, newVal) -> updateSelectedDateHint(newVal));
+            updateSelectedDateHint(datePicker.getValue());
+        }
+    }
+
+    private void updateFontSizeLabel() {
+        if (lblFontSizeValue != null) {
+            lblFontSizeValue.setText(String.format(Locale.ROOT, "%.0f px", fontSize));
+        }
+    }
+
+    private void updateSelectedDateHint(LocalDate date) {
+        if (lblSelectedDate == null) {
+            return;
+        }
+        if (date == null) {
+            lblSelectedDate.setText("Selecione uma data no calendário.");
+            return;
+        }
+        String formatted = date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(
+                Locale.forLanguageTag("pt-BR")));
+        lblSelectedDate.setText(formatted);
+    }
+
+    private void syncFontControls(Tab tab) {
+        if (tab == null) {
+            return;
+        }
+        TabData data = (TabData) tab.getUserData();
+        if (data == null || cbCodeFont == null || cbTextFont == null) {
+            return;
+        }
+        boolean code = data.codeMode;
+        cbCodeFont.setDisable(!code);
+        cbTextFont.setDisable(code);
     }
 
     private void setupShortcuts() {
@@ -382,7 +486,7 @@ public class EditorController {
         data.encoding = defaultEncoding;
         data.lineEnding = defaultLineEnding;
 
-        applyFontSize(area);
+        applyEditorStyle(area, true);
         attachHighlight(data);
 
         area.plainTextChanges().subscribe(ignore -> {
@@ -633,20 +737,25 @@ public class EditorController {
             detachHighlight(data);
             clearStyles(data.area);
         }
+        applyEditorStyle(data.area, codeMode);
+        syncFontControls(tabPane.getSelectionModel().getSelectedItem());
     }
 
-    private void applyFontSize(CodeArea area) {
+    private void applyEditorStyle(CodeArea area, boolean codeMode) {
         if (area == null) {
             return;
         }
-        area.setStyle("-fx-font-size: " + String.format(java.util.Locale.ROOT, "%.0f", fontSize) + "px;");
+        String family = codeMode ? codeFontFamily : textFontFamily;
+        String escaped = family.replace("\\", "\\\\").replace("\"", "\\\"");
+        area.setStyle(String.format(Locale.ROOT,
+                "-fx-font-family: \"%s\"; -fx-font-size: %.0fpx;", escaped, fontSize));
     }
 
-    private void applyFontSizeAll() {
+    private void applyEditorStyleAll() {
         for (Tab tab : tabPane.getTabs()) {
             TabData data = (TabData) tab.getUserData();
             if (data != null) {
-                applyFontSize(data.area);
+                applyEditorStyle(data.area, data.codeMode);
             }
         }
     }
@@ -657,7 +766,11 @@ public class EditorController {
             return;
         }
         fontSize = clamped;
-        applyFontSizeAll();
+        if (sliderFontSize != null && Math.abs(sliderFontSize.getValue() - clamped) >= 0.01) {
+            sliderFontSize.setValue(clamped);
+        }
+        applyEditorStyleAll();
+        updateFontSizeLabel();
         updateZoomStatus();
     }
 
@@ -1306,6 +1419,48 @@ public class EditorController {
         String replaced = text.replace(query, replacement == null ? "" : replacement);
         area.replaceText(replaced);
         lblFindStatus.setText("Substituição concluída.");
+    }
+
+    @FXML
+    public void handleGlassStyle() {
+        if (root == null || miGlassStyle == null) {
+            return;
+        }
+        if (miGlassStyle.isSelected()) {
+            if (!root.getStyleClass().contains("glass-chrome")) {
+                root.getStyleClass().add("glass-chrome");
+            }
+        } else {
+            root.getStyleClass().remove("glass-chrome");
+        }
+    }
+
+    @FXML
+    public void handleSidePanel() {
+        if (sidePanel == null || miSidePanel == null) {
+            return;
+        }
+        boolean show = miSidePanel.isSelected();
+        sidePanel.setVisible(show);
+        sidePanel.setManaged(show);
+    }
+
+    @FXML
+    public void handleInsertDate() {
+        CodeArea area = getCurrentArea();
+        if (area == null || datePicker == null) {
+            return;
+        }
+        LocalDate date = datePicker.getValue();
+        if (date == null) {
+            updateStatus("Selecione uma data no calendário.");
+            return;
+        }
+        String text = date.format(INSERT_DATE_FORMAT);
+        int pos = area.getCaretPosition();
+        area.insertText(pos, text);
+        area.moveTo(pos + text.length());
+        updateStatus("Data inserida: " + text);
     }
 
     @FXML

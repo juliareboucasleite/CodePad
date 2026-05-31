@@ -3,6 +3,75 @@
     -fx-font-family: "Montserrat", "Poppins", "Segoe UI", sans-serif;
 }
 
+/* Painel lateral: vidro + fontes + calendário */
+.glass-panel {
+    -fx-background-color: rgba(255, 255, 255, 0.52);
+    -fx-background-radius: 14;
+    -fx-border-color: rgba(255, 255, 255, 0.85);
+    -fx-border-width: 1;
+    -fx-border-radius: 14;
+    -fx-padding: 14 12 14 12;
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.14), 16, 0.35, 0, 2);
+}
+
+.side-panel .panel-title {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #111827;
+}
+
+.side-panel .panel-label {
+    -fx-font-size: 11px;
+    -fx-text-fill: #4b5563;
+}
+
+.side-panel .panel-hint {
+    -fx-font-size: 11px;
+    -fx-text-fill: #6b7280;
+}
+
+.side-panel .combo-box,
+.side-panel .date-picker,
+.side-panel .slider {
+    -fx-background-color: rgba(255, 255, 255, 0.65);
+    -fx-background-radius: 8;
+}
+
+.side-panel .button {
+    -fx-background-color: rgba(59, 130, 246, 0.85);
+    -fx-text-fill: white;
+    -fx-background-radius: 8;
+    -fx-padding: 6 12 6 12;
+}
+
+.side-panel .button:hover {
+    -fx-background-color: rgba(37, 99, 235, 0.95);
+}
+
+/* Chrome com efeito vidro (menu, barra, abas, status) */
+.glass-chrome .menu-bar,
+.glass-chrome .tool-bar,
+.glass-chrome .status-bar {
+    -fx-background-color: rgba(229, 231, 235, 0.72);
+}
+
+.glass-chrome .tab-header-area .tab-header-background {
+    -fx-background-color: rgba(229, 231, 235, 0.65);
+}
+
+.glass-chrome .tab-pane .tab {
+    -fx-background-color: rgba(229, 231, 235, 0.55);
+}
+
+.glass-chrome .tab-pane .tab:selected {
+    -fx-background-color: rgba(255, 255, 255, 0.5);
+}
+
+.glass-chrome .code-area,
+.glass-chrome .text-area {
+    -fx-background-color: rgba(255, 255, 255, 0.88);
+}
+
 .menu-bar {
     -fx-background-color: #e5e7eb;
     -fx-border-color: #d1d5db;
