@@ -22,26 +22,30 @@ Por isso **não mudámos antes**: o projeto inteiro está em **Java** (~2800 lin
 
 Isto é o mesmo tipo de efeito que o Explorador (Mica Alt / tabbed). Sem lutar contra o Glass do JavaFX.
 
-## Estado atual
+## Estado atual (fase: Mica + notas)
 
-| Componente | Java (atual) | WinUI (protótipo) |
-|------------|--------------|-------------------|
-| Mica / wallpaper | Instável | `winui/CodePad.WinUI` |
-| Editor + syntax | RichTextFX | A fazer (`TextBox` ou editor rico) |
-| Calendário / eventos | `EventStore` JSON | A portar para C# |
-| Atualizações GitHub | `UpdateService` | A portar |
-| Instalador EXE | jpackage | MSIX ou `dotnet publish` |
+| Componente | Java (atual) | WinUI (`winui/CodePad.WinUI`) |
+|------------|--------------|-------------------------------|
+| Mica / wallpaper | Instável | `<MicaBackdrop Kind="BaseAlt" />` |
+| Notas / abas | RichTextFX + TabPane | `TabView` + `TextBox` transparente |
+| Rascunhos | `drafts.dat` DRAFTS_V2 | Mesmo ficheiro em `%LOCALAPPDATA%\CodePad` |
+| Abrir / Salvar | Sim | Sim (.txt, .md) |
+| Calendário / código | Sim | Próxima fase |
+| Instalador | jpackage | `package-winui.ps1` |
 
 ## Como compilar o protótipo WinUI
 
 Requisitos: Windows 11, Visual Studio 2022 **ou** Build Tools com workload **Windows application development**, .NET 8 SDK.
 
 ```powershell
-cd j:\ProjetosJava\CodePad\winui\CodePad.WinUI
-dotnet restore
-dotnet build -c Release
-dotnet run -c Release
+cd j:\ProjetosJava\CodePad\winui
+.\package-winui.ps1
+# ou, após build:
+cd CodePad.WinUI
+dotnet run -c Release -p:Platform=x64
 ```
+
+Abra **Exibir → Vidro/Mica** não é necessário: o Mica vem sempre ativo nesta versão WinUI.
 
 Se `dotnet build` falhar:
 

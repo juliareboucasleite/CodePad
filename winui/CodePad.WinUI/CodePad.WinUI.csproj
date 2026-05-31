@@ -10,6 +10,11 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <WindowsPackageType>None</WindowsPackageType>
+    <EnableMsixTooling>false</EnableMsixTooling>
+    <GenerateAppxPackageOnBuild>false</GenerateAppxPackageOnBuild>
+    <DisableMrtCore>true</DisableMrtCore>
+    <ApplicationTitle>CodePad</ApplicationTitle>
+    <ApplicationDisplayVersion>0.1.0</ApplicationDisplayVersion>
   </PropertyGroup>
 
   <ItemGroup>

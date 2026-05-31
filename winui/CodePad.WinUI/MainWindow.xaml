@@ -2,32 +2,19 @@
     x:Class="CodePad.WinUI.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="CodePad — WinUI (Mica nativo)">
+    Title="CodePad — Notas">
 
-    <Window.SystemBackdrop>
-        <MicaBackdrop />
-    </Window.SystemBackdrop>
-
-    <Grid Padding="24">
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0"
-                   Text="CodePad — protótipo WinUI com Mica (como o Explorador)"
-                   FontSize="18"
-                   FontWeight="SemiBold"
-                   Margin="0,0,0,12" />
+        <MenuBar Grid.Row="0" x:Name="MainMenu" />
 
-        <TextBox Grid.Row="1"
-                 x:Name="Editor"
-                 AcceptsReturn="True"
-                 TextWrapping="Wrap"
-                 PlaceholderText="Notas…"
-                 FontFamily="Segoe UI"
-                 FontSize="14"
-                 BorderThickness="0"
-                 Background="Transparent" />
+        <TabView x:Name="NotesTabView" Grid.Row="1" IsAddTabButtonVisible="True" />
+
+        <TextBlock x:Name="StatusText" Grid.Row="2" Margin="12,6" Text="Pronto" />
     </Grid>
 </Window>
