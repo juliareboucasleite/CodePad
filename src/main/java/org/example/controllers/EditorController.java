@@ -798,7 +798,6 @@ public class EditorController {
         area.getStyleClass().add(codeMode ? "code-area" : "text-area");
         if (micaEnabled) {
             area.getStyleClass().add("mica-editor");
-            area.setBackground(Background.EMPTY);
         }
         area.setParagraphGraphicFactory(LineNumberFactory.get(area));
 
@@ -1121,7 +1120,7 @@ public class EditorController {
         }
         String family = codeMode ? codeFontFamily : textFontFamily;
         String escaped = family.replace("\\", "\\\\").replace("\"", "\\\"");
-        String bg = micaEnabled ? "-fx-background-color: transparent; " : "";
+        String bg = micaEnabled ? "-fx-background-color: rgba(20, 22, 28, 0.92); " : "";
         area.setStyle(String.format(Locale.ROOT,
                 "%s-fx-font-family: \"%s\"; -fx-font-size: %.0fpx;", bg, escaped, fontSize));
     }
@@ -1800,9 +1799,6 @@ public class EditorController {
 
     public void attachMainWindow(Stage stage, Scene scene) {
         this.mainStage = stage;
-        if (scene != null) {
-            scene.setFill(Color.TRANSPARENT);
-        }
         if (!WindowsBackdrop.isSupported()) {
             if (miGlassStyle != null) {
                 miGlassStyle.setDisable(true);
@@ -1814,10 +1810,8 @@ public class EditorController {
         } else {
             boolean enable = miGlassStyle != null && miGlassStyle.isSelected();
             setMicaEnabled(enable);
-            if (!enable) {
-                updateSceneFill();
-            }
         }
+        updateSceneFill();
         checkForUpdatesAsync();
     }
 
@@ -1874,19 +1868,28 @@ public class EditorController {
         syncMicaThemeClass();
         applyMicaVisuals();
         forceGlassNodeStyles(false);
+        javafx.application.Platform.runLater(() -> {
+            if (micaEnabled && root != null) {
+                forceGlassNodeStyles(root.getStyleClass().contains("mica-live"));
+            }
+        });
     }
 
-    private void forceGlassNodeStyles(boolean wallpaperThrough) {
+    /**
+     * Fundos escuros semi-opacos nos nós JavaFX. Transparência total deixa o buffer Glass branco
+     * quando o DWM não compõe por baixo — o utilizador vê um painel branco.
+     */
+    private void forceGlassNodeStyles(boolean dwmBackdropActive) {
         if (root == null) {
             return;
         }
-        String chromeBg = wallpaperThrough ? "rgba(0, 0, 0, 0.1)" : "rgba(43, 47, 54, 0.96)";
-        String editorBg = wallpaperThrough ? "rgba(15, 17, 22, 0.2)" : "rgba(31, 35, 41, 0.98)";
-        String panelBg = wallpaperThrough ? "rgba(0, 0, 0, 0.12)" : "rgba(43, 47, 54, 0.96)";
+        String chromeBg = dwmBackdropActive ? "rgba(35, 38, 48, 0.72)" : "rgba(43, 47, 54, 0.96)";
+        String editorBg = dwmBackdropActive ? "rgba(22, 24, 30, 0.78)" : "rgba(31, 35, 41, 0.98)";
+        String panelBg = dwmBackdropActive ? "rgba(38, 42, 52, 0.75)" : "rgba(43, 47, 54, 0.96)";
         String labelFill = "#f1f5f9";
 
-        root.setStyle(wallpaperThrough
-                ? "-fx-background-color: transparent;"
+        root.setStyle(dwmBackdropActive
+                ? "-fx-background-color: rgba(18, 20, 26, 0.35);"
                 : "-fx-background-color: rgba(22, 24, 30, 0.98);");
 
         if (chromeTop != null) {
@@ -1902,18 +1905,20 @@ public class EditorController {
         for (Node node : root.lookupAll(".menu-bar, .tool-bar, .status-bar")) {
             node.setStyle("-fx-background-color: " + chromeBg + ";");
         }
-        for (Node node : root.lookupAll(".menu-bar .label, .tool-bar .button")) {
+        for (Node node : root.lookupAll(".menu-bar .label, .menu-bar .menu .label, .tool-bar .button")) {
             node.setStyle("-fx-text-fill: " + labelFill + ";");
         }
         for (Node node : root.lookupAll(".status-bar .label")) {
             node.setStyle("-fx-text-fill: #e2e8f0;");
         }
         for (Node node : root.lookupAll(".code-area, .text-area")) {
-            node.setStyle("-fx-background-color: "
-                    + (wallpaperThrough ? "transparent" : "rgba(20, 22, 28, 0.95)") + ";");
+            node.setStyle("-fx-background-color: rgba(20, 22, 28, 0.92);");
         }
         for (Node node : root.lookupAll(".tab-header-area .tab-header-background")) {
             node.setStyle("-fx-background-color: " + chromeBg + ";");
+        }
+        for (Node node : root.lookupAll(".tab-content-area, .editor-scroll, .editor-scroll > .viewport")) {
+            node.setStyle("-fx-background-color: " + editorBg + ";");
         }
     }
 
@@ -1933,10 +1938,14 @@ public class EditorController {
         if (root == null) {
             return;
         }
-        for (Node node : root.lookupAll(".menu-bar, .tool-bar, .status-bar, .code-area, .text-area")) {
+        for (Node node : root.lookupAll(
+                ".menu-bar, .tool-bar, .status-bar, .code-area, .text-area, .tab-content-area, .editor-scroll")) {
             node.setStyle("");
         }
         for (Node node : root.lookupAll(".menu-bar .label, .tool-bar .button, .status-bar .label")) {
+            node.setStyle("");
+        }
+        for (Node node : root.lookupAll(".editor-scroll > .viewport")) {
             node.setStyle("");
         }
     }
@@ -1986,14 +1995,14 @@ public class EditorController {
     }
 
     /**
-     * Com Mica ativo: cena sempre transparente para o DWM desfocar o papel de parede.
+     * Cena: evitar TRANSPARENT total (buffer Glass fica branco). Com DWM ativo usa tinta escura quase nula.
      */
     private void updateSceneFill() {
         if (mainStage == null || mainStage.getScene() == null) {
             return;
         }
         if (micaEnabled && root != null && root.getStyleClass().contains("mica-live")) {
-            mainStage.getScene().setFill(Color.TRANSPARENT);
+            mainStage.getScene().setFill(Color.color(0.07, 0.08, 0.1, 0.01));
         } else if (micaEnabled) {
             mainStage.getScene().setFill(Color.web("#1a1c22"));
         } else if (isDarkTheme()) {
@@ -2013,7 +2022,7 @@ public class EditorController {
                 TabData data = (TabData) tab.getUserData();
                 if (data != null && data.area != null) {
                     data.area.getStyleClass().add("mica-editor");
-                    data.area.setBackground(Background.EMPTY);
+                    applyEditorStyle(data.area, data.codeMode);
                 }
             }
         } else {
