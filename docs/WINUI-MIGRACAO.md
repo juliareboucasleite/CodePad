@@ -43,7 +43,18 @@ dotnet build -c Release
 dotnet run -c Release
 ```
 
-Se `dotnet build` falhar por falta de workload, instale no Visual Studio Installer: **Desenvolvimento para desktop com C++** e **Windows App SDK**.
+Se `dotnet build` falhar:
+
+- **ExpandPriContent / AppxPackage** — instale **Visual Studio 2022** (ou Build Tools) com a carga **Desenvolvimento de aplicativos da plataforma Windows universal** e **Windows App SDK C# Templates**.
+- Compile preferencialmente no **Developer PowerShell for VS**, não só com `dotnet` CLI isolado.
+
+O protótipo usa Mica nativo:
+
+```xml
+<Window.SystemBackdrop>
+    <MicaBackdrop />
+</Window.SystemBackdrop>
+```
 
 ## Plano de migração sugerido (fases)
 
