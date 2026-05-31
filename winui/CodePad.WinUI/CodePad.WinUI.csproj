@@ -13,6 +13,8 @@
     <EnableMsixTooling>false</EnableMsixTooling>
     <GenerateAppxPackageOnBuild>false</GenerateAppxPackageOnBuild>
     <DisableMrtCore>true</DisableMrtCore>
+    <EnablePriGeneration>false</EnablePriGeneration>
+    <GenerateAppxPriConfigXml>false</GenerateAppxPriConfigXml>
     <ApplicationTitle>CodePad</ApplicationTitle>
     <ApplicationDisplayVersion>0.1.0</ApplicationDisplayVersion>
   </PropertyGroup>

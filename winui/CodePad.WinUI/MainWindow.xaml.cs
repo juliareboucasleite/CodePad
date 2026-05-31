@@ -22,7 +22,7 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        SystemBackdrop = new MicaBackdrop { Kind = MicaKind.BaseAlt };
+        SystemBackdrop = new MicaBackdrop();
 
         _autosaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
         _autosaveTimer.Tick += (_, _) => { if (_draftsDirty) PersistDrafts(); };
