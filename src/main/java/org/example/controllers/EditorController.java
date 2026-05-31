@@ -24,9 +24,11 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.geometry.Point2D;
+import org.example.Main;
 import org.example.model.CalendarEvent;
 import org.example.services.EventStore;
 import org.example.services.UpdateService;
+import javafx.scene.Node;
 import org.example.ui.MonthCalendarPane;
 import org.example.ui.WindowsBackdrop;
 import org.fxmisc.flowless.VirtualizedScrollPane;
@@ -209,6 +211,8 @@ public class EditorController {
     @FXML
     private Label lblZoom;
     @FXML
+    private VBox chromeTop;
+    @FXML
     private VBox sidePanel;
     @FXML
     private ComboBox<String> cbCodeFont;
@@ -320,7 +324,7 @@ public class EditorController {
     private String currentTheme = THEME_DARK;
     private Stage mainStage;
     private String micaStylesheetUrl;
-    private boolean micaEnabled = true;
+    private boolean micaEnabled = false;
     private Stage findStage;
     private TextField tfFind;
     private TextField tfReplace;
@@ -1837,6 +1841,7 @@ public class EditorController {
             root.setStyle("");
             removeMicaStylesheet();
             setMicaLiveClass(false);
+            clearGlassInlineStyles();
             if (mainStage != null) {
                 WindowsBackdrop.apply(mainStage, isDarkTheme(), WindowsBackdrop.Backdrop.NONE);
             }
@@ -1845,7 +1850,11 @@ public class EditorController {
         }
     }
 
-    /** Vidro exige tema escuro; recarrega folhas para não misturar tema claro (branco + texto ilegível). */
+    private static java.net.URL themeUrl(String path) {
+        return Main.class.getResource(path);
+    }
+
+    /** Vidro exige tema escuro; estilos inline evitam fundo branco do JavaFX/Modena. */
     private void applyGlassTheme() {
         if (root == null) {
             return;
@@ -1855,20 +1864,88 @@ public class EditorController {
         }
         currentTheme = THEME_DARK;
         root.getStylesheets().clear();
-        java.net.URL dark = getClass().getResource(THEME_DARK);
-        if (dark != null) {
-            root.getStylesheets().add(dark.toExternalForm());
+        java.net.URL dark = themeUrl(THEME_DARK);
+        if (dark == null) {
+            showError("Tema não encontrado", THEME_DARK);
+            return;
         }
+        root.getStylesheets().add(dark.toExternalForm());
         ensureMicaStylesheet();
         syncMicaThemeClass();
         applyMicaVisuals();
+        forceGlassNodeStyles(false);
+    }
+
+    private void forceGlassNodeStyles(boolean wallpaperThrough) {
+        if (root == null) {
+            return;
+        }
+        String chromeBg = wallpaperThrough ? "rgba(0, 0, 0, 0.1)" : "rgba(43, 47, 54, 0.96)";
+        String editorBg = wallpaperThrough ? "rgba(15, 17, 22, 0.2)" : "rgba(31, 35, 41, 0.98)";
+        String panelBg = wallpaperThrough ? "rgba(0, 0, 0, 0.12)" : "rgba(43, 47, 54, 0.96)";
+        String labelFill = "#f1f5f9";
+
+        root.setStyle(wallpaperThrough
+                ? "-fx-background-color: transparent;"
+                : "-fx-background-color: rgba(22, 24, 30, 0.98);");
+
+        if (chromeTop != null) {
+            chromeTop.setStyle("-fx-background-color: " + chromeBg + ";");
+        }
+        if (tabPane != null) {
+            tabPane.setStyle("-fx-background-color: " + editorBg + ";");
+        }
+        if (sidePanel != null) {
+            sidePanel.setStyle("-fx-background-color: " + panelBg + ";");
+        }
+
+        for (Node node : root.lookupAll(".menu-bar, .tool-bar, .status-bar")) {
+            node.setStyle("-fx-background-color: " + chromeBg + ";");
+        }
+        for (Node node : root.lookupAll(".menu-bar .label, .tool-bar .button")) {
+            node.setStyle("-fx-text-fill: " + labelFill + ";");
+        }
+        for (Node node : root.lookupAll(".status-bar .label")) {
+            node.setStyle("-fx-text-fill: #e2e8f0;");
+        }
+        for (Node node : root.lookupAll(".code-area, .text-area")) {
+            node.setStyle("-fx-background-color: "
+                    + (wallpaperThrough ? "transparent" : "rgba(20, 22, 28, 0.95)") + ";");
+        }
+        for (Node node : root.lookupAll(".tab-header-area .tab-header-background")) {
+            node.setStyle("-fx-background-color: " + chromeBg + ";");
+        }
+    }
+
+    private void clearGlassInlineStyles() {
+        if (root != null) {
+            root.setStyle("");
+        }
+        if (chromeTop != null) {
+            chromeTop.setStyle("");
+        }
+        if (tabPane != null) {
+            tabPane.setStyle("");
+        }
+        if (sidePanel != null) {
+            sidePanel.setStyle("");
+        }
+        if (root == null) {
+            return;
+        }
+        for (Node node : root.lookupAll(".menu-bar, .tool-bar, .status-bar, .code-area, .text-area")) {
+            node.setStyle("");
+        }
+        for (Node node : root.lookupAll(".menu-bar .label, .tool-bar .button, .status-bar .label")) {
+            node.setStyle("");
+        }
     }
 
     private void ensureMicaStylesheet() {
         if (root == null) {
             return;
         }
-        java.net.URL url = getClass().getResource(THEME_MICA);
+        java.net.URL url = themeUrl(THEME_MICA);
         if (url == null) {
             return;
         }
@@ -1931,10 +2008,6 @@ public class EditorController {
             return;
         }
         if (micaEnabled) {
-            boolean live = root.getStyleClass().contains("mica-live");
-            root.setStyle(live
-                    ? "-fx-background-color: transparent; -fx-background-insets: 0;"
-                    : "-fx-background-color: rgba(22, 24, 30, 0.92); -fx-background-insets: 0;");
             applyEditorStyleAll();
             for (Tab tab : tabPane.getTabs()) {
                 TabData data = (TabData) tab.getUserData();
@@ -1966,12 +2039,13 @@ public class EditorController {
                 if (micaEnabled && mainStage != null) {
                     boolean dwm = WindowsBackdrop.applyNow(mainStage, true, WindowsBackdrop.Backdrop.MICA);
                     setMicaLiveClass(dwm);
+                    forceGlassNodeStyles(dwm);
                     updateSceneFill();
                     applyMicaVisuals();
                     if (dwm) {
                         updateStatus("Vidro ativo — papel de parede com blur (Windows 11).");
                     } else {
-                        updateStatus("Vidro escuro ativo. Blur do sistema indisponível nesta janela.");
+                        updateStatus("Vidro escuro ativo (sem blur do sistema nesta janela).");
                     }
                 }
             });
@@ -2073,7 +2147,7 @@ public class EditorController {
             return;
         }
         root.getStylesheets().clear();
-        java.net.URL url = getClass().getResource(theme);
+        java.net.URL url = themeUrl(theme);
         if (url == null) {
             showError("Tema não encontrado", "Não foi possível carregar " + theme);
             return;
