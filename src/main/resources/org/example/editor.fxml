@@ -167,12 +167,16 @@
     </center>
 
     <right>
-        <VBox fx:id="sidePanel" styleClass="glass-panel side-panel" prefWidth="260" spacing="10"
+        <VBox fx:id="sidePanel" styleClass="glass-panel side-panel" prefWidth="280" spacing="8"
               visible="true" managed="true">
             <Label text="Planejamento" styleClass="panel-title" />
-            <Label text="Calendário" styleClass="panel-label" />
-            <DatePicker fx:id="datePicker" prefWidth="220" />
-            <Button text="Inserir data nas notas" onAction="#handleInsertDate" maxWidth="Infinity" />
+            <VBox fx:id="calendarHost" styleClass="calendar-host" spacing="4" />
+            <Button fx:id="btnNewEvent" text="+ Novo evento" onAction="#handleNewEvent"
+                    maxWidth="Infinity" styleClass="calendar-primary-btn" />
+            <Label text="Eventos do dia" styleClass="panel-label" />
+            <ListView fx:id="lvDayEvents" prefHeight="110" maxHeight="140" />
+            <Button text="Inserir evento nas notas" onAction="#handleInsertEventToNotes" maxWidth="Infinity" />
+            <Button text="Inserir data do dia" onAction="#handleInsertDate" maxWidth="Infinity" />
             <Button text="Inserir tarefa [ ]" onAction="#handleInsertTask" maxWidth="Infinity" />
             <Label fx:id="lblSelectedDate" styleClass="panel-hint" wrapText="true" />
             <Separator />

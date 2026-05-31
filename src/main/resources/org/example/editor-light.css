@@ -282,3 +282,61 @@
 .note-tag {
     -fx-fill: #7c3aed;
 }
+
+.calendar-month-title {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #111827;
+}
+
+.calendar-nav {
+    -fx-background-color: rgba(59, 130, 246, 0.85);
+    -fx-text-fill: white;
+    -fx-min-width: 28;
+}
+
+.calendar-weekday {
+    -fx-font-size: 10px;
+    -fx-text-fill: #6b7280;
+}
+
+.calendar-day {
+    -fx-background-color: rgba(255, 255, 255, 0.85);
+    -fx-background-radius: 6;
+    -fx-min-width: 28;
+    -fx-min-height: 28;
+    -fx-border-color: rgba(0, 0, 0, 0.06);
+    -fx-border-width: 1;
+}
+
+.calendar-day-selected {
+    -fx-background-color: rgba(59, 130, 246, 0.25);
+}
+
+.calendar-day-num {
+    -fx-font-size: 11px;
+    -fx-text-fill: #111827;
+}
+
+.calendar-primary-btn {
+    -fx-background-color: rgba(59, 130, 246, 0.9);
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+.event-cell-title {
+    -fx-text-fill: #111827;
+    -fx-font-size: 12px;
+}
+
+.event-cell-time {
+    -fx-text-fill: #6b7280;
+    -fx-font-size: 10px;
+}
+
+.event-stripe-blue { -fx-background-color: #3b82f6; }
+.event-stripe-green { -fx-background-color: #22c55e; }
+.event-stripe-orange { -fx-background-color: #f97316; }
+.event-stripe-purple { -fx-background-color: #a855f7; }
+.event-stripe-yellow { -fx-background-color: #eab308; }
+.event-stripe-grey { -fx-background-color: #6b7280; }

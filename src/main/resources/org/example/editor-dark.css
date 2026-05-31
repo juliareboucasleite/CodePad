@@ -280,3 +280,94 @@
 .note-tag {
     -fx-fill: #c4b5fd;
 }
+
+/* Calendário de planejamento */
+.calendar-host {
+    -fx-padding: 0 0 4 0;
+}
+
+.calendar-month-title {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f1f5f9;
+    -fx-alignment: center;
+}
+
+.calendar-nav {
+    -fx-background-color: rgba(59, 130, 246, 0.35);
+    -fx-text-fill: #f9fafb;
+    -fx-min-width: 28;
+    -fx-padding: 2 8 2 8;
+}
+
+.calendar-weekday {
+    -fx-font-size: 10px;
+    -fx-text-fill: #94a3b8;
+}
+
+.calendar-day {
+    -fx-background-color: rgba(43, 47, 54, 0.65);
+    -fx-background-radius: 6;
+    -fx-min-width: 28;
+    -fx-min-height: 28;
+    -fx-cursor: hand;
+}
+
+.calendar-day-other .calendar-day-num {
+    -fx-text-fill: #64748b;
+}
+
+.calendar-day-today {
+    -fx-border-color: #60a5fa;
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+}
+
+.calendar-day-selected {
+    -fx-background-color: rgba(59, 130, 246, 0.55);
+}
+
+.calendar-day-num {
+    -fx-font-size: 11px;
+    -fx-text-fill: #e2e8f0;
+}
+
+.calendar-event-dot {
+    -fx-min-width: 5;
+    -fx-min-height: 5;
+    -fx-max-width: 5;
+    -fx-max-height: 5;
+    -fx-background-radius: 3;
+    -fx-background-color: #60a5fa;
+}
+
+.calendar-event-dot-busy {
+    -fx-background-color: #f59e0b;
+}
+
+.calendar-primary-btn {
+    -fx-background-color: rgba(59, 130, 246, 0.95);
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+.event-cell-title {
+    -fx-text-fill: #f1f5f9;
+    -fx-font-size: 12px;
+}
+
+.event-cell-time {
+    -fx-text-fill: #94a3b8;
+    -fx-font-size: 10px;
+}
+
+.event-stripe {
+    -fx-background-radius: 2;
+}
+
+.event-stripe-blue { -fx-background-color: #3b82f6; }
+.event-stripe-green { -fx-background-color: #22c55e; }
+.event-stripe-orange { -fx-background-color: #f97316; }
+.event-stripe-purple { -fx-background-color: #a855f7; }
+.event-stripe-yellow { -fx-background-color: #eab308; }
+.event-stripe-grey { -fx-background-color: #6b7280; }

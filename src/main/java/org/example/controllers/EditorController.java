@@ -10,18 +10,23 @@ import javafx.scene.control.*;
 import javafx.scene.paint.Color;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.event.ActionEvent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.geometry.Point2D;
+import org.example.model.CalendarEvent;
+import org.example.services.EventStore;
 import org.example.services.UpdateService;
+import org.example.ui.MonthCalendarPane;
 import org.example.ui.WindowsBackdrop;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
@@ -41,7 +46,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.time.format.FormatStyle;
 import java.util.Locale;
 import java.util.ArrayList;
@@ -211,9 +218,17 @@ public class EditorController {
     @FXML
     private Label lblFontSizeValue;
     @FXML
-    private DatePicker datePicker;
+    private VBox calendarHost;
+    @FXML
+    private Button btnNewEvent;
+    @FXML
+    private ListView<CalendarEvent> lvDayEvents;
     @FXML
     private Label lblSelectedDate;
+
+    private final EventStore eventStore = new EventStore();
+    private MonthCalendarPane monthCalendar;
+    private LocalDate plannerSelectedDate = LocalDate.now();
     @FXML
     private CheckMenuItem miGlassStyle;
     @FXML
@@ -426,11 +441,279 @@ public class EditorController {
                 }
             });
         }
-        if (datePicker != null) {
-            datePicker.setValue(LocalDate.now());
-            datePicker.valueProperty().addListener((obs, oldVal, newVal) -> updateSelectedDateHint(newVal));
-            updateSelectedDateHint(datePicker.getValue());
+        setupPlanner();
+    }
+
+    private void setupPlanner() {
+        if (calendarHost == null) {
+            return;
         }
+        try {
+            eventStore.load();
+        } catch (IOException ex) {
+            updateStatus("Não foi possível carregar eventos: " + ex.getMessage());
+        }
+        calendarHost.getChildren().clear();
+        monthCalendar = new MonthCalendarPane();
+        monthCalendar.setSelectedDate(LocalDate.now());
+        monthCalendar.setEventCountForDate(d -> eventStore.countOnDate(d));
+        monthCalendar.setOnDateSelected(date -> {
+            plannerSelectedDate = date;
+            updateSelectedDateHint(date);
+            refreshDayEventsList();
+        });
+        monthCalendar.setOnAddEventOnDate(date -> {
+            plannerSelectedDate = date;
+            updateSelectedDateHint(date);
+            showEventDialog(null, date);
+        });
+        calendarHost.getChildren().add(monthCalendar);
+        plannerSelectedDate = monthCalendar.getSelectedDate();
+        updateSelectedDateHint(plannerSelectedDate);
+
+        if (lvDayEvents != null) {
+            lvDayEvents.setPlaceholder(new Label("Nenhum evento neste dia.\nClique em + Novo evento."));
+            lvDayEvents.setCellFactory(list -> new ListCell<>() {
+                private final HBox row = new HBox(8);
+                private final Region stripe = new Region();
+                private final VBox texts = new VBox(2);
+                private final Label lblTitle = new Label();
+                private final Label lblTime = new Label();
+
+                {
+                    stripe.setMinWidth(4);
+                    stripe.setMaxWidth(4);
+                    stripe.setMinHeight(28);
+                    lblTitle.getStyleClass().add("event-cell-title");
+                    lblTime.getStyleClass().add("event-cell-time");
+                    texts.getChildren().addAll(lblTitle, lblTime);
+                    row.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+                    row.getChildren().addAll(stripe, texts);
+                }
+
+                @Override
+                protected void updateItem(CalendarEvent item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setGraphic(null);
+                        setText(null);
+                        return;
+                    }
+                    stripe.getStyleClass().setAll("event-stripe", "event-stripe-" + item.colorKey());
+                    lblTitle.setText(item.title().isBlank() ? "(Sem título)" : item.title());
+                    lblTime.setText(item.time() == null ? "Dia inteiro" : item.timeLabel());
+                    setGraphic(row);
+                }
+            });
+            lvDayEvents.setOnMouseClicked(e -> {
+                if (e.getClickCount() >= 2) {
+                    CalendarEvent ev = lvDayEvents.getSelectionModel().getSelectedItem();
+                    if (ev != null) {
+                        showEventDialog(ev, ev.date());
+                    }
+                }
+            });
+            refreshDayEventsList();
+        }
+    }
+
+    private void refreshDayEventsList() {
+        if (lvDayEvents == null) {
+            return;
+        }
+        List<CalendarEvent> dayEvents = new ArrayList<>(eventStore.onDate(plannerSelectedDate));
+        dayEvents.sort((a, b) -> {
+            if (a.time() == null && b.time() == null) {
+                return a.title().compareToIgnoreCase(b.title());
+            }
+            if (a.time() == null) {
+                return 1;
+            }
+            if (b.time() == null) {
+                return -1;
+            }
+            return a.time().compareTo(b.time());
+        });
+        lvDayEvents.getItems().setAll(dayEvents);
+        if (monthCalendar != null) {
+            monthCalendar.refresh();
+        }
+    }
+
+    @FXML
+    public void handleNewEvent() {
+        showEventDialog(null, plannerSelectedDate);
+    }
+
+    @FXML
+    public void handleInsertEventToNotes() {
+        CodeArea area = getCurrentArea();
+        if (area == null) {
+            return;
+        }
+        CalendarEvent ev = lvDayEvents == null ? null : lvDayEvents.getSelectionModel().getSelectedItem();
+        if (ev == null) {
+            List<CalendarEvent> day = eventStore.onDate(plannerSelectedDate);
+            if (day.isEmpty()) {
+                updateStatus("Crie ou selecione um evento na lista.");
+                return;
+            }
+            ev = day.get(0);
+        }
+        StringBuilder line = new StringBuilder("- ");
+        if (ev.time() != null) {
+            line.append(ev.timeLabel()).append(" ");
+        }
+        line.append(ev.title().isBlank() ? "Evento" : ev.title());
+        if (!ev.date().equals(plannerSelectedDate)) {
+            line.append(" (").append(ev.date().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))).append(")");
+        }
+        line.append("\n");
+        insertNoteLine(area, line.toString());
+        updateStatus("Evento inserido nas notas.");
+    }
+
+    private void showEventDialog(CalendarEvent existing, LocalDate defaultDate) {
+        Dialog<CalendarEvent> dialog = new Dialog<>();
+        dialog.setTitle(existing == null ? "Novo evento" : "Editar evento");
+        dialog.initModality(Modality.APPLICATION_MODAL);
+        if (mainStage != null) {
+            dialog.initOwner(mainStage);
+        }
+        ButtonType save = new ButtonType("Guardar", ButtonBar.ButtonData.OK_DONE);
+        ButtonType delete = new ButtonType("Apagar", ButtonBar.ButtonData.OTHER);
+        ButtonType cancel = new ButtonType("Cancelar", ButtonBar.ButtonData.CANCEL_CLOSE);
+        if (existing == null) {
+            dialog.getDialogPane().getButtonTypes().addAll(save, cancel);
+        } else {
+            dialog.getDialogPane().getButtonTypes().addAll(save, delete, cancel);
+        }
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new javafx.geometry.Insets(16));
+
+        TextField tfTitle = new TextField(existing == null ? "" : existing.title());
+        tfTitle.setPromptText("Título do evento");
+        DatePicker dpDate = new DatePicker(defaultDate == null ? LocalDate.now() : defaultDate);
+        TextField tfTime = new TextField(existing != null && existing.time() != null ? existing.timeLabel() : "");
+        tfTime.setPromptText("Opcional — HH:mm");
+        ComboBox<String> cbColor = new ComboBox<>();
+        cbColor.getItems().addAll("blue", "green", "orange", "purple", "yellow", "grey");
+        cbColor.setValue(existing == null ? "blue" : existing.colorKey());
+        cbColor.setCellFactory(box -> new ListCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                    return;
+                }
+                setText(colorLabel(item));
+                setStyle("-fx-background-color: " + colorHex(item) + "; -fx-text-fill: white;");
+            }
+        });
+        cbColor.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : colorLabel(item));
+            }
+        });
+
+        grid.add(new Label("Título"), 0, 0);
+        grid.add(tfTitle, 1, 0);
+        grid.add(new Label("Data"), 0, 1);
+        grid.add(dpDate, 1, 1);
+        grid.add(new Label("Hora"), 0, 2);
+        grid.add(tfTime, 1, 2);
+        grid.add(new Label("Cor"), 0, 3);
+        grid.add(cbColor, 1, 3);
+        dialog.getDialogPane().setContent(grid);
+
+        if (existing != null) {
+            Button deleteBtn = (Button) dialog.getDialogPane().lookupButton(delete);
+            deleteBtn.addEventFilter(ActionEvent.ACTION, e -> {
+                try {
+                    eventStore.remove(existing.id());
+                    updateStatus("Evento apagado.");
+                    refreshDayEventsList();
+                } catch (IOException ex) {
+                    showError("Erro ao apagar evento", ex.getMessage());
+                }
+                dialog.close();
+                e.consume();
+            });
+        }
+
+        dialog.setResultConverter(btn -> {
+            if (btn != save) {
+                return null;
+            }
+            LocalDate date = dpDate.getValue();
+            if (date == null) {
+                return null;
+            }
+            LocalTime time = null;
+            String timeRaw = tfTime.getText() == null ? "" : tfTime.getText().trim();
+            if (!timeRaw.isEmpty()) {
+                try {
+                    time = LocalTime.parse(timeRaw);
+                } catch (DateTimeParseException ex) {
+                    showError("Hora inválida", "Use o formato HH:mm (ex: 14:30).");
+                    return null;
+                }
+            }
+            String title = tfTitle.getText() == null ? "" : tfTitle.getText().trim();
+            if (existing == null) {
+                return CalendarEvent.create(date, time, title, cbColor.getValue());
+            }
+            return new CalendarEvent(existing.id(), date, time, title, cbColor.getValue());
+        });
+
+        dialog.showAndWait().ifPresent(value -> {
+            try {
+                if (existing == null) {
+                    eventStore.add(value);
+                    updateStatus("Evento criado.");
+                } else {
+                    eventStore.update(value);
+                    updateStatus("Evento atualizado.");
+                }
+                plannerSelectedDate = value.date();
+                if (monthCalendar != null) {
+                    monthCalendar.setSelectedDate(plannerSelectedDate);
+                }
+                updateSelectedDateHint(plannerSelectedDate);
+                refreshDayEventsList();
+            } catch (IOException ex) {
+                showError("Erro ao guardar evento", ex.getMessage());
+            }
+        });
+    }
+
+    private static String colorLabel(String key) {
+        return switch (key) {
+            case "green" -> "Verde";
+            case "orange" -> "Laranja";
+            case "purple" -> "Roxo";
+            case "yellow" -> "Amarelo";
+            case "grey" -> "Cinza";
+            default -> "Azul";
+        };
+    }
+
+    private static String colorHex(String key) {
+        return switch (key) {
+            case "green" -> "#22c55e";
+            case "orange" -> "#f97316";
+            case "purple" -> "#a855f7";
+            case "yellow" -> "#eab308";
+            case "grey" -> "#6b7280";
+            default -> "#3b82f6";
+        };
     }
 
     private void updateFontSizeLabel() {
@@ -1680,12 +1963,12 @@ public class EditorController {
     @FXML
     public void handleInsertDate() {
         CodeArea area = getCurrentArea();
-        if (area == null || datePicker == null) {
+        if (area == null) {
             return;
         }
-        LocalDate date = datePicker.getValue();
+        LocalDate date = plannerSelectedDate;
         if (date == null) {
-            updateStatus("Selecione uma data no calendário.");
+            updateStatus("Selecione um dia no calendário.");
             return;
         }
         String heading = date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy - EEEE",
