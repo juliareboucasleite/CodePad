@@ -29,6 +29,10 @@ public class Main extends Application {
     }
 
     public static void main(String[] args) {
+        if (System.getProperty("os.name", "").toLowerCase().contains("win")) {
+            System.setProperty("prism.forceUploadingPainter", "true");
+            System.setProperty("glass.win.forceDWM", "true");
+        }
         launch();
     }
 }

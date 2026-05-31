@@ -798,6 +798,9 @@ public class EditorController {
         area.getStyleClass().add(codeMode ? "code-area" : "text-area");
         if (micaEnabled) {
             area.getStyleClass().add("mica-editor");
+            if (root != null && root.getStyleClass().contains("mica-live")) {
+                area.setBackground(Background.EMPTY);
+            }
         }
         area.setParagraphGraphicFactory(LineNumberFactory.get(area));
 
@@ -1120,7 +1123,12 @@ public class EditorController {
         }
         String family = codeMode ? codeFontFamily : textFontFamily;
         String escaped = family.replace("\\", "\\\\").replace("\"", "\\\"");
-        String bg = micaEnabled ? "-fx-background-color: rgba(20, 22, 28, 0.92); " : "";
+        String bg = "";
+        if (micaEnabled && root != null && root.getStyleClass().contains("mica-live")) {
+            bg = "-fx-background-color: transparent; ";
+        } else if (micaEnabled) {
+            bg = "-fx-background-color: rgba(20, 22, 28, 0.4); ";
+        }
         area.setStyle(String.format(Locale.ROOT,
                 "%s-fx-font-family: \"%s\"; -fx-font-size: %.0fpx;", bg, escaped, fontSize));
     }
@@ -1838,6 +1846,7 @@ public class EditorController {
             clearGlassInlineStyles();
             if (mainStage != null) {
                 WindowsBackdrop.apply(mainStage, isDarkTheme(), WindowsBackdrop.Backdrop.NONE);
+                WindowsBackdrop.configureOpaqueWindow(mainStage);
             }
             updateSceneFill();
             applyEditorStyleAll();
@@ -1867,17 +1876,47 @@ public class EditorController {
         ensureMicaStylesheet();
         syncMicaThemeClass();
         applyMicaVisuals();
-        forceGlassNodeStyles(false);
-        javafx.application.Platform.runLater(() -> {
-            if (micaEnabled && root != null) {
-                forceGlassNodeStyles(root.getStyleClass().contains("mica-live"));
+        clearGlassInlineStyles();
+        updateSceneFill();
+    }
+
+    /** Mica do sistema ativo: remove estilos inline opacos para o papel de parede aparecer. */
+    private void activateMicaPassthrough() {
+        if (root == null) {
+            return;
+        }
+        clearGlassInlineStyles();
+        root.setStyle("-fx-background-color: transparent;");
+        applyTextLegibilityStyles();
+        applyEditorStyleAll();
+        for (Tab tab : tabPane.getTabs()) {
+            TabData data = (TabData) tab.getUserData();
+            if (data != null && data.area != null) {
+                data.area.setBackground(Background.EMPTY);
             }
-        });
+        }
+    }
+
+    /** Sem Mica do DWM: vidro escuro opaco (evita fundo branco do buffer Glass). */
+    private void activateMicaFallback() {
+        forceGlassNodeStyles(false);
+    }
+
+    private void applyTextLegibilityStyles() {
+        if (root == null) {
+            return;
+        }
+        String labelFill = "#f1f5f9";
+        for (Node node : root.lookupAll(".menu-bar .label, .menu-bar .menu .label, .tool-bar .button")) {
+            node.setStyle("-fx-text-fill: " + labelFill + ";");
+        }
+        for (Node node : root.lookupAll(".status-bar .label")) {
+            node.setStyle("-fx-text-fill: #e2e8f0;");
+        }
     }
 
     /**
-     * Fundos escuros semi-opacos nos nós JavaFX. Transparência total deixa o buffer Glass branco
-     * quando o DWM não compõe por baixo — o utilizador vê um painel branco.
+     * Fundos escuros semi-opacos — só quando o DWM ainda não aplicou o Mica.
      */
     private void forceGlassNodeStyles(boolean dwmBackdropActive) {
         if (root == null) {
@@ -1994,17 +2033,15 @@ public class EditorController {
         }
     }
 
-    /**
-     * Cena: evitar TRANSPARENT total (buffer Glass fica branco). Com DWM ativo usa tinta escura quase nula.
-     */
+    /** Com Mica ativo e DWM OK: cena transparente para o blur do papel de parede (como o Explorador). */
     private void updateSceneFill() {
         if (mainStage == null || mainStage.getScene() == null) {
             return;
         }
         if (micaEnabled && root != null && root.getStyleClass().contains("mica-live")) {
-            mainStage.getScene().setFill(Color.color(0.07, 0.08, 0.1, 0.01));
+            mainStage.getScene().setFill(Color.TRANSPARENT);
         } else if (micaEnabled) {
-            mainStage.getScene().setFill(Color.web("#1a1c22"));
+            mainStage.getScene().setFill(Color.color(0.06, 0.07, 0.09, 0.85));
         } else if (isDarkTheme()) {
             mainStage.getScene().setFill(Color.web("#2b2f36"));
         } else {
@@ -2046,16 +2083,19 @@ public class EditorController {
                     javafx.util.Duration.millis(delayMs));
             pause.setOnFinished(e -> {
                 if (micaEnabled && mainStage != null) {
-                    boolean dwm = WindowsBackdrop.applyNow(mainStage, true, WindowsBackdrop.Backdrop.MICA);
+                    WindowsBackdrop.configureTransparentWindow(mainStage);
+                    boolean dwm = WindowsBackdrop.applyNow(
+                            mainStage, true, WindowsBackdrop.Backdrop.MICA_TABBED);
                     setMicaLiveClass(dwm);
-                    forceGlassNodeStyles(dwm);
+                    if (dwm) {
+                        activateMicaPassthrough();
+                        updateStatus("Mica ativo — papel de parede visível (como o Explorador).");
+                    } else {
+                        activateMicaFallback();
+                        updateStatus("Vidro escuro (Mica do sistema indisponível nesta janela).");
+                    }
                     updateSceneFill();
                     applyMicaVisuals();
-                    if (dwm) {
-                        updateStatus("Vidro ativo — papel de parede com blur (Windows 11).");
-                    } else {
-                        updateStatus("Vidro escuro ativo (sem blur do sistema nesta janela).");
-                    }
                 }
             });
             pause.play();
@@ -2071,7 +2111,8 @@ public class EditorController {
         syncMicaThemeClass();
         updateSceneFill();
         applyMicaVisuals();
-        WindowsBackdrop.apply(mainStage, true, WindowsBackdrop.Backdrop.MICA);
+        WindowsBackdrop.configureTransparentWindow(mainStage);
+        WindowsBackdrop.apply(mainStage, true, WindowsBackdrop.Backdrop.MICA_TABBED);
         scheduleBackdropReapply();
     }
 

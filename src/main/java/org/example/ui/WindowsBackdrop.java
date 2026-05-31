@@ -2,20 +2,25 @@ package org.example.ui;
 
 import com.sun.jna.Memory;
 import com.sun.jna.Native;
+import com.sun.jna.Structure;
 import com.sun.jna.platform.win32.WinDef;
 import com.sun.jna.win32.StdCallLibrary;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.animation.PauseTransition;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
- * Ativa Mica/Acrylic do Windows 11 e transparência da janela Glass (JavaFX).
+ * Ativa Mica/Acrylic do Windows 11 (como o Explorador) e transparência da janela Glass (JavaFX).
  */
 public final class WindowsBackdrop {
 
     public enum Backdrop {
+        /** Mica em janelas com separadores/abas — efeito do Explorador de ficheiros. */
+        MICA_TABBED(4),
         MICA(2),
-        MICA_ALT(4),
         ACRYLIC(3),
         NONE(1);
 
@@ -28,11 +33,34 @@ public final class WindowsBackdrop {
 
     private static final int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
     private static final int DWMWA_SYSTEMBACKDROP_TYPE = 38;
+    /** Legado; em alguns builds reforça o Mica após SYSTEMBACKDROP_TYPE. */
+    private static final int DWMWA_MICA_EFFECT = 1029;
 
     private interface Dwmapi extends StdCallLibrary {
         Dwmapi INSTANCE = Native.load("dwmapi", Dwmapi.class);
 
         int DwmSetWindowAttribute(WinDef.HWND hwnd, int dwAttribute, Memory pvAttribute, int cbAttribute);
+
+        int DwmExtendFrameIntoClientArea(WinDef.HWND hwnd, Margins pMarInset);
+    }
+
+    public static class Margins extends Structure {
+        public int cxLeftWidth;
+        public int cxRightWidth;
+        public int cyTopHeight;
+        public int cyBottomHeight;
+
+        public Margins() {
+            cxLeftWidth = -1;
+            cxRightWidth = -1;
+            cyTopHeight = -1;
+            cyBottomHeight = -1;
+        }
+
+        @Override
+        protected List<String> getFieldOrder() {
+            return Arrays.asList("cxLeftWidth", "cxRightWidth", "cyTopHeight", "cyBottomHeight");
+        }
     }
 
     private WindowsBackdrop() {
@@ -72,8 +100,18 @@ public final class WindowsBackdrop {
             return false;
         }
         WinDef.HWND hWnd = new WinDef.HWND(com.sun.jna.Pointer.createConstant(hwnd));
+        extendFrameIntoClientArea(hWnd);
         setIntAttribute(hWnd, DWMWA_USE_IMMERSIVE_DARK_MODE, darkMode ? 1 : 0);
-        return applyBackdropType(hWnd, backdrop);
+        boolean backdropOk = applyBackdropType(hWnd, backdrop);
+        if (backdropOk) {
+            setIntAttribute(hWnd, DWMWA_MICA_EFFECT, 1);
+        }
+        return backdropOk;
+    }
+
+    private static void extendFrameIntoClientArea(WinDef.HWND hWnd) {
+        Margins margins = new Margins();
+        Dwmapi.INSTANCE.DwmExtendFrameIntoClientArea(hWnd, margins);
     }
 
     /**
@@ -81,6 +119,15 @@ public final class WindowsBackdrop {
      */
     @SuppressWarnings("restriction")
     public static void configureTransparentWindow(Stage stage) {
+        setPlatformWindowOpaque(stage, false);
+    }
+
+    public static void configureOpaqueWindow(Stage stage) {
+        setPlatformWindowOpaque(stage, true);
+    }
+
+    @SuppressWarnings("restriction")
+    private static void setPlatformWindowOpaque(Stage stage, boolean opaque) {
         if (stage == null) {
             return;
         }
@@ -89,34 +136,44 @@ public final class WindowsBackdrop {
             if (peer instanceof com.sun.javafx.tk.quantum.WindowStage windowStage) {
                 com.sun.glass.ui.Window platformWindow = windowStage.getPlatformWindow();
                 if (platformWindow != null) {
-                    java.lang.reflect.Method setOpaque = platformWindow.getClass()
-                            .getMethod("setOpaque", boolean.class);
-                    setOpaque.invoke(platformWindow, false);
+                    setPlatformWindowOpaque(platformWindow, opaque);
                 }
             }
-        } catch (ReflectiveOperationException | Error ignored) {
+        } catch (Exception | Error ignored) {
+        }
+    }
+
+    private static void setPlatformWindowOpaque(com.sun.glass.ui.Window platformWindow, boolean opaque) {
+        try {
+            java.lang.reflect.Method setOpaque = platformWindow.getClass().getMethod("setOpaque", boolean.class);
+            setOpaque.invoke(platformWindow, opaque);
+        } catch (ReflectiveOperationException ignored) {
         }
     }
 
     private static boolean applyBackdropType(WinDef.HWND hWnd, Backdrop preferred) {
         int[] order = switch (preferred) {
+            case MICA_TABBED -> new int[]{
+                    Backdrop.MICA_TABBED.dwmsbtValue,
+                    Backdrop.MICA.dwmsbtValue,
+                    Backdrop.ACRYLIC.dwmsbtValue
+            };
             case ACRYLIC -> new int[]{
                     Backdrop.ACRYLIC.dwmsbtValue,
-                    Backdrop.MICA.dwmsbtValue,
-                    Backdrop.MICA_ALT.dwmsbtValue
+                    Backdrop.MICA_TABBED.dwmsbtValue,
+                    Backdrop.MICA.dwmsbtValue
             };
-            case MICA_ALT -> new int[]{
-                    Backdrop.MICA_ALT.dwmsbtValue,
+            case MICA -> new int[]{
                     Backdrop.MICA.dwmsbtValue,
+                    Backdrop.MICA_TABBED.dwmsbtValue,
                     Backdrop.ACRYLIC.dwmsbtValue
             };
-            default -> new int[]{
-                    Backdrop.MICA.dwmsbtValue,
-                    Backdrop.MICA_ALT.dwmsbtValue,
-                    Backdrop.ACRYLIC.dwmsbtValue
-            };
+            default -> new int[]{Backdrop.NONE.dwmsbtValue};
         };
         for (int type : order) {
+            if (type == Backdrop.NONE.dwmsbtValue) {
+                continue;
+            }
             if (setIntAttribute(hWnd, DWMWA_SYSTEMBACKDROP_TYPE, type) == 0) {
                 return true;
             }
@@ -128,10 +185,10 @@ public final class WindowsBackdrop {
         if (applyNow(stage, darkMode, backdrop)) {
             return;
         }
-        if (attempt >= 10) {
+        if (attempt >= 12) {
             return;
         }
-        PauseTransition pause = new PauseTransition(Duration.millis(100L * (attempt + 1)));
+        PauseTransition pause = new PauseTransition(Duration.millis(80L * (attempt + 1)));
         pause.setOnFinished(e -> scheduleApply(stage, darkMode, backdrop, attempt + 1));
         pause.play();
     }

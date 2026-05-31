@@ -123,7 +123,8 @@ $javaOpts = @(
     "--java-options", "--add-opens=javafx.graphics/com.sun.javafx.tk.quantum=ALL-UNNAMED",
     "--java-options", "--add-opens=javafx.graphics/com.sun.glass.ui=ALL-UNNAMED",
     "--java-options", "--add-opens=javafx.graphics/com.sun.glass.ui.win=ALL-UNNAMED",
-    "--java-options", "-Dglass.win.forceDWM=true"
+    "--java-options", "-Dglass.win.forceDWM=true",
+    "--java-options", "-Dprism.forceUploadingPainter=true"
 )
 
 & $jpackage `

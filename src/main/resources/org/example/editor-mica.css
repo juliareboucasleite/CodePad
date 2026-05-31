@@ -146,41 +146,58 @@
     -fx-text-fill: #f1f5f9;
 }
 
-/* DWM ativo: mais translúcido, mas nunca transparente total (evita fundo branco do Glass) */
+/* DWM ativo: transparente como o Explorador — o Mica do Windows desfoca o papel de parede */
 .mica-window.mica-live.root {
-    -fx-background-color: rgba(18, 20, 26, 0.35);
+    -fx-background-color: transparent;
+}
+
+.mica-window.mica-live .app-chrome-top,
+.mica-window.mica-live TabPane,
+.mica-window.mica-live .tab-pane,
+.mica-window.mica-live .tab-pane > .tab-content-area,
+.mica-window.mica-live .editor-scroll,
+.mica-window.mica-live .editor-scroll > .viewport,
+.mica-window.mica-live .scroll-pane,
+.mica-window.mica-live .scroll-pane > .viewport {
+    -fx-background-color: transparent;
 }
 
 .mica-window.mica-live .menu-bar,
 .mica-window.mica-live .tool-bar,
 .mica-window.mica-live .status-bar {
-    -fx-background-color: rgba(35, 38, 48, 0.72);
+    -fx-background-color: rgba(0, 0, 0, 0.12);
 }
 
 .mica-window.mica-live .tab-header-area .tab-header-background {
-    -fx-background-color: rgba(35, 38, 48, 0.65);
+    -fx-background-color: rgba(0, 0, 0, 0.1);
 }
 
 .mica-window.mica-live .tab-pane .tab {
-    -fx-background-color: rgba(40, 44, 54, 0.55);
+    -fx-background-color: rgba(0, 0, 0, 0.08);
 }
 
-.mica-window.mica-live .tab-pane > .tab-content-area,
-.mica-window.mica-live .editor-scroll,
-.mica-window.mica-live .editor-scroll > .viewport {
-    -fx-background-color: rgba(22, 24, 30, 0.78);
+.mica-window.mica-live .tab-pane .tab:selected {
+    -fx-background-color: rgba(255, 255, 255, 0.06);
 }
 
 .mica-window.mica-live .code-area,
 .mica-window.mica-live .text-area,
-.mica-window.mica-live .code-area .content {
-    -fx-background-color: rgba(20, 22, 28, 0.88);
+.mica-window.mica-live .code-area .content,
+.mica-window.mica-live .code-area .paragraph-box .text {
+    -fx-background-color: transparent;
 }
 
 .mica-window.mica-live .glass-panel {
-    -fx-background-color: rgba(38, 42, 52, 0.75);
+    -fx-background-color: rgba(0, 0, 0, 0.18);
+    -fx-border-color: rgba(255, 255, 255, 0.08);
 }
 
 .mica-window.mica-live .calendar-day {
-    -fx-background-color: rgba(0, 0, 0, 0.25);
+    -fx-background-color: rgba(0, 0, 0, 0.15);
+}
+
+.mica-window.mica-live .side-panel .combo-box,
+.mica-window.mica-live .side-panel .date-picker,
+.mica-window.mica-live .side-panel .list-view {
+    -fx-background-color: rgba(0, 0, 0, 0.22);
 }
