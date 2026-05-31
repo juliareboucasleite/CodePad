@@ -21,7 +21,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Consulta releases no GitHub e baixa o instalador adequado (EXE, APK, etc.).
+ * Consulta releases no GitHub e baixa o instalador Windows (EXE).
  */
 public class UpdateService {
 
@@ -50,7 +50,7 @@ public class UpdateService {
     }
 
     public enum Platform {
-        WINDOWS, LINUX, MAC, ANDROID, UNKNOWN
+        WINDOWS, LINUX, MAC, UNKNOWN
     }
 
     @FunctionalInterface
@@ -74,9 +74,6 @@ public class UpdateService {
     public static Platform detectPlatform() {
         String vm = System.getProperty("java.vm.name", "").toLowerCase(Locale.ROOT);
         String vendor = System.getProperty("java.vm.vendor", "").toLowerCase(Locale.ROOT);
-        if (vm.contains("dalvik") || vendor.contains("android")) {
-            return Platform.ANDROID;
-        }
         String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         if (os.contains("win")) {
             return Platform.WINDOWS;
@@ -92,10 +89,6 @@ public class UpdateService {
 
     public Optional<ReleaseInfo> fetchLatestRelease() throws IOException, InterruptedException {
         return fetchLatestRelease(null);
-    }
-
-    public Optional<ReleaseInfo> fetchLatestApkRelease() throws IOException, InterruptedException {
-        return fetchLatestRelease(Platform.ANDROID);
     }
 
     public Optional<ReleaseInfo> fetchLatestRelease(Platform forcePlatform)
@@ -147,16 +140,15 @@ public class UpdateService {
             String suffix = candidate.contains(".") ? candidate.substring(candidate.lastIndexOf('.')) : candidate;
             for (ReleaseAsset asset : assets) {
                 String name = asset.name();
-                if (name != null && name.toLowerCase(Locale.ROOT).endsWith(suffix.toLowerCase(Locale.ROOT))) {
+                if (name == null || isExcludedAsset(name, platform)) {
+                    continue;
+                }
+                if (name.toLowerCase(Locale.ROOT).endsWith(suffix.toLowerCase(Locale.ROOT))) {
                     return Optional.of(asset);
                 }
             }
         }
         return Optional.empty();
-    }
-
-    public Optional<ReleaseAsset> findApkAsset(List<ReleaseAsset> assets) {
-        return findAssetForPlatform(assets, Platform.ANDROID);
     }
 
     public Path defaultDownloadDir() throws IOException {
@@ -228,7 +220,6 @@ public class UpdateService {
             case WINDOWS -> "Windows (.exe)";
             case LINUX -> "Linux";
             case MAC -> "macOS";
-            case ANDROID -> "Android (.apk)";
             case UNKNOWN -> "sistema atual";
         };
     }
@@ -246,8 +237,10 @@ public class UpdateService {
         }
         Platform platform = forcePlatform != null ? forcePlatform : detectPlatform();
         Optional<ReleaseAsset> asset = findAssetForPlatform(assets, platform);
-        if (asset.isEmpty() && !assets.isEmpty()) {
-            asset = Optional.of(assets.get(0));
+        if (asset.isEmpty()) {
+            asset = assets.stream()
+                    .filter(a -> a.name() != null && !isExcludedAsset(a.name(), platform))
+                    .findFirst();
         }
         if (asset.isEmpty()) {
             return Optional.empty();
@@ -255,18 +248,24 @@ public class UpdateService {
         return Optional.of(new ReleaseInfo(tag, url, asset.get(), notes));
     }
 
+    private static boolean isExcludedAsset(String name, Platform platform) {
+        String lower = name.toLowerCase(Locale.ROOT);
+        if (platform == Platform.WINDOWS && lower.endsWith(".apk")) {
+            return true;
+        }
+        return false;
+    }
+
     private static List<String> assetPriorities(Platform platform) {
         return switch (platform) {
             case WINDOWS -> List.of(
                     "CodePad.exe", "CodePad-Setup.exe", "CodePad-setup.exe", "codepad.exe");
-            case ANDROID -> List.of(
-                    "CodePad.apk", "codepad.apk", "CodePad-release.apk", "app-release.apk");
             case LINUX -> List.of(
                     "CodePad.deb", "codepad.deb", "CodePad.AppImage", "CodePad.tar.gz");
             case MAC -> List.of(
                     "CodePad.dmg", "CodePad.pkg", "CodePad-mac.dmg");
             case UNKNOWN -> List.of(
-                    "CodePad.apk", "CodePad.exe", "CodePad.deb", "CodePad.dmg");
+                    "CodePad.exe", "CodePad.deb", "CodePad.dmg");
         };
     }
 

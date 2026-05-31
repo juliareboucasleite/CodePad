@@ -45,20 +45,7 @@ $releaseExe = Join-Path "dist" "CodePad.exe"
 Copy-Item -Force -Path $installer.FullName -Destination $releaseExe
 Write-Host "Copiado para $releaseExe (atualizador automático)" -ForegroundColor Green
 
-Write-Host "`n=== APK Android ===" -ForegroundColor Cyan
-if (Test-Path ".\package-apk.ps1") {
-    & .\package-apk.ps1
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "APK não gerado (veja mensagens acima)." -ForegroundColor Yellow
-    }
-} else {
-    Write-Host "package-apk.ps1 não encontrado." -ForegroundColor Yellow
-}
-
 Write-Host "`nArtefatos para anexar na release GitHub v$version :" -ForegroundColor Green
 Write-Host "  - $releaseExe"
-if (Test-Path "dist\CodePad.apk") {
-    Write-Host "  - dist\CodePad.apk"
-}
 Write-Host "  - $($installer.FullName)"
 Write-Host "`nTag sugerida: v$version"

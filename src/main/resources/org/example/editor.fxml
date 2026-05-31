@@ -94,7 +94,6 @@
                             <MenuItem fx:id="miCheckUpdates" text="Verificar atualizações..." onAction="#handleCheckUpdates" />
                             <MenuItem fx:id="miUpdateHelp" text="Como atualizar o app" onAction="#handleUpdateHelp" />
                             <SeparatorMenuItem />
-                            <MenuItem fx:id="miDownloadApk" text="Baixar APK (Android)..." onAction="#handleDownloadApk" />
                             <MenuItem fx:id="miOpenReleases" text="Ver todas as releases" onAction="#handleOpenReleases" />
                         </items>
                     </Menu>

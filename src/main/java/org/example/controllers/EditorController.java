@@ -81,22 +81,16 @@ public class EditorController {
             DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.forLanguageTag("pt-BR"));
 
     private static final String HELP_UPDATE_TEXT = """
-            Como os usuários atualizam o CodePad
+            Como os usuários atualizam o CodePad (Windows)
 
             Publicação (você, desenvolvedora):
-            • Crie uma release no GitHub com a versão (ex.: v1.2.3).
-            • Anexe o instalador Windows (CodePad.exe) e/ou o APK (CodePad.apk).
-            • Os nomes dos arquivos devem conter .exe ou .apk para o app encontrá-los.
+            • Crie uma release no GitHub com a versão (ex.: v1.3.1).
+            • Anexe o instalador como CodePad.exe (nome exato para o atualizador automático).
 
-            Windows (usuários com .exe):
-            • Ao abrir o app, ele verifica atualizações automaticamente.
-            • Ajuda → Verificar atualizações → Baixar → arquivo em Downloads\\CodePad.
+            Usuários:
+            • Ao abrir o app, ele verifica atualizações no GitHub.
+            • Ajuda → Verificar atualizações → Baixar → pasta Downloads\\CodePad.
             • Execute o instalador; pode instalar por cima da versão anterior.
-
-            Android (usuários com .apk):
-            • Ajuda → Baixar APK (Android) ou use a release no GitHub.
-            • Instale o APK por cima do app antigo (mesma assinatura).
-            • Se necessário, permita instalar apps de fontes desconhecidas.
 
             Sem internet ou falha no download:
             • Ajuda → Ver todas as releases e baixe manualmente no navegador.
@@ -302,8 +296,6 @@ public class EditorController {
     private MenuItem miCheckUpdates;
     @FXML
     private MenuItem miUpdateHelp;
-    @FXML
-    private MenuItem miDownloadApk;
     @FXML
     private MenuItem miOpenReleases;
 
@@ -1720,35 +1712,6 @@ public class EditorController {
         openInBrowser(UpdateService.GITHUB_RELEASES_URL);
     }
 
-    @FXML
-    public void handleDownloadApk() {
-        new Thread(() -> {
-            try {
-                Optional<UpdateService.ReleaseInfo> release = updateService.fetchLatestApkRelease();
-                Platform.runLater(() -> {
-                    if (release.isEmpty()) {
-                        showError("APK não encontrado",
-                                "Não há arquivo .apk na última release.\n"
-                                        + "Publique CodePad.apk na release do GitHub.");
-                        return;
-                    }
-                    Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-                    confirm.setTitle("Baixar APK");
-                    confirm.setHeaderText("Release " + release.get().tag());
-                    confirm.setContentText("Arquivo: " + release.get().assetName() + "\n\n"
-                            + "O APK será salvo em Downloads\\CodePad.\n"
-                            + "Transfira para o celular e instale por cima da versão antiga.");
-                    confirm.getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
-                    if (confirm.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
-                        startDownload(release.get());
-                    }
-                });
-            } catch (Exception ex) {
-                Platform.runLater(() -> showError("Falha ao obter APK", ex.getMessage()));
-            }
-        }, "apk-download").start();
-    }
-
     private void showScrollableHelp(String title, String body) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(title);
@@ -1977,9 +1940,6 @@ public class EditorController {
 
     private static String updateStepsForPlatform(UpdateService.Platform platform) {
         return switch (platform) {
-            case ANDROID -> """
-                    O APK será baixado para Downloads/CodePad.
-                    Abra o arquivo no celular e instale por cima do app antigo.""";
             case WINDOWS -> """
                     O instalador será salvo em Downloads\\CodePad.
                     Execute o .exe para atualizar (pode instalar por cima).""";
