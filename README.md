@@ -5,4 +5,4 @@ Para usar, abra o aplicativo e crie ou abra arquivos. No modo Código, use Tab p
 Download do app: acesse a página de Releases do GitHub e baixe a versão mais recente do instalador (.exe).
 Releases: https://github.com/juliareboucasleite/CodePad/releases
 
-Para rodar pelo Maven, use mvnw javafx:run com JAVA_HOME apontando para um JDK 21+. Para empacotar o app-image, use package.ps1. O instalador .exe depende do WiX Toolset, então se quiser gerar o instalador use package-installer.ps1 após instalar o WiX.
+Para rodar pelo Maven, use mvnw javafx:run com JAVA_HOME apontando para um JDK 21+. Para gerar release completa (EXE + APK v1.3.0+), use `package-release.ps1` com JDK 21 no JAVA_HOME. Scripts: `package-installer.ps1` (instalador Windows), `package-apk.ps1` (APK Android em `android/`), `package.ps1` (app-image). Anexe na release do GitHub: `dist/CodePad.exe`, `dist/CodePad.apk` e opcionalmente `dist/installer/CodePad-x.y.z.exe`.

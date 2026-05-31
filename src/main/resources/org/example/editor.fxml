@@ -7,8 +7,8 @@
             xmlns="http://javafx.com/javafx"
             xmlns:fx="http://javafx.com/fxml"
             fx:controller="org.example.controllers.EditorController"
-            stylesheets="@editor-light.css"
-            styleClass="root"
+            stylesheets="@editor-dark.css"
+            styleClass="root mica-window glass-chrome"
             prefWidth="980.0"
             prefHeight="640.0">
 
@@ -77,10 +77,10 @@
                     </Menu>
                     <Menu text="Exibir">
                         <items>
-                            <RadioMenuItem fx:id="miThemeLight" text="Tema Claro" onAction="#handleThemeLight" selected="true" />
-                            <RadioMenuItem fx:id="miThemeDark" text="Tema Escuro" onAction="#handleThemeDark" />
+                            <RadioMenuItem fx:id="miThemeLight" text="Tema Claro" onAction="#handleThemeLight" />
+                            <RadioMenuItem fx:id="miThemeDark" text="Tema Escuro" onAction="#handleThemeDark" selected="true" />
                             <SeparatorMenuItem />
-                            <CheckMenuItem fx:id="miGlassStyle" text="Estilo vidro (blur)" onAction="#handleGlassStyle" />
+                            <CheckMenuItem fx:id="miGlassStyle" text="Mica / blur (Windows 11)" onAction="#handleGlassStyle" selected="true" />
                             <CheckMenuItem fx:id="miSidePanel" text="Calendário e planejamento" onAction="#handleSidePanel" selected="true" />
                             <SeparatorMenuItem />
                             <MenuItem fx:id="miZoomIn" text="Zoom +" onAction="#handleZoomIn" />

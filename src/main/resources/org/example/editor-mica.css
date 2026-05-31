@@ -1,0 +1,126 @@
+/* Usado com Mica/Acrylic do Windows 11 — fundos transparentes para o blur aparecer */
+
+.mica-window {
+    -fx-background-color: transparent;
+}
+
+.mica-window .menu-bar,
+.mica-window .tool-bar,
+.mica-window .status-bar {
+    -fx-background-color: rgba(255, 255, 255, 0.04);
+    -fx-border-color: rgba(255, 255, 255, 0.08);
+}
+
+.mica-window .tab-pane,
+.mica-window .tab-pane > .tab-content-area,
+.mica-window .tab-pane:focused > .tab-content-area {
+    -fx-background-color: transparent;
+}
+
+.mica-window .tab-header-area .tab-header-background {
+    -fx-background-color: rgba(255, 255, 255, 0.03);
+    -fx-border-color: rgba(255, 255, 255, 0.06);
+}
+
+.mica-window .tab-pane .tab {
+    -fx-background-color: rgba(255, 255, 255, 0.02);
+    -fx-border-color: transparent;
+}
+
+.mica-window .tab-pane .tab:selected {
+    -fx-background-color: rgba(255, 255, 255, 0.06);
+    -fx-border-color: rgba(147, 197, 253, 0.45);
+    -fx-border-width: 0 0 2 0;
+}
+
+.mica-window .editor-scroll,
+.mica-window .editor-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.mica-window .code-area,
+.mica-window .text-area {
+    -fx-background-color: rgba(25, 25, 30, 0.25);
+}
+
+.mica-window .code-area .content,
+.mica-window .code-area .paragraph-box .text {
+    -fx-background-color: transparent;
+}
+
+.mica-window .code-area .text,
+.mica-window .text-area .text {
+    -fx-fill: #f1f5f9;
+}
+
+.mica-window .lineno {
+    -fx-background-color: rgba(0, 0, 0, 0.18);
+    -fx-text-fill: #94a3b8;
+}
+
+.mica-window .glass-panel {
+    -fx-background-color: rgba(30, 30, 38, 0.45);
+    -fx-border-color: rgba(255, 255, 255, 0.12);
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.35), 12, 0.3, 0, 2);
+}
+
+.mica-window .side-panel .panel-title {
+    -fx-text-fill: #f8fafc;
+}
+
+.mica-window .side-panel .panel-label {
+    -fx-text-fill: #cbd5e1;
+}
+
+.mica-window .side-panel .panel-hint {
+    -fx-text-fill: #94a3b8;
+}
+
+.mica-window .menu-bar .label,
+.mica-window .tool-bar .button {
+    -fx-text-fill: #f1f5f9;
+}
+
+.mica-window .tb-icon {
+    -fx-background-color: #f1f5f9;
+}
+
+.mica-window .status-bar .label {
+    -fx-text-fill: #e2e8f0;
+}
+
+.mica-window .context-menu {
+    -fx-background-color: rgba(40, 40, 48, 0.92);
+    -fx-border-color: rgba(255, 255, 255, 0.1);
+}
+
+.mica-window .menu-item .label {
+    -fx-text-fill: #f1f5f9;
+}
+
+/* Tema claro com Mica (Explorador claro) */
+.mica-window.mica-light .menu-bar,
+.mica-window.mica-light .tool-bar,
+.mica-window.mica-light .status-bar {
+    -fx-background-color: rgba(255, 255, 255, 0.35);
+    -fx-border-color: rgba(0, 0, 0, 0.06);
+}
+
+.mica-window.mica-light .code-area,
+.mica-window.mica-light .text-area {
+    -fx-background-color: rgba(255, 255, 255, 0.28);
+}
+
+.mica-window.mica-light .code-area .text,
+.mica-window.mica-light .text-area .text {
+    -fx-fill: #0f172a;
+}
+
+.mica-window.mica-light .menu-bar .label,
+.mica-window.mica-light .tool-bar .button {
+    -fx-text-fill: #111827;
+}
+
+.mica-window.mica-light .tb-icon {
+    -fx-background-color: #111827;
+}

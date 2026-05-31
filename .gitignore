@@ -39,3 +39,9 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### Android ###
+android/local.properties
+android/.gradle/
+android/app/build/
+android/build/

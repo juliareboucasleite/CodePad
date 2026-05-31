@@ -7,6 +7,7 @@ import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.paint.Color;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.KeyCode;
@@ -21,6 +22,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.geometry.Point2D;
 import org.example.services.UpdateService;
+import org.example.ui.WindowsBackdrop;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.LineNumberFactory;
@@ -60,6 +62,7 @@ public class EditorController {
 
     private static final String THEME_LIGHT = "/org/example/editor-light.css";
     private static final String THEME_DARK = "/org/example/editor-dark.css";
+    private static final String THEME_MICA = "/org/example/editor-mica.css";
     private static final String APP_NAME = "CodePad";
     private static final String DRAFTS_DIR = "CodePad";
     private static final String LEGACY_DRAFTS_DIR = "CodePad";
@@ -306,7 +309,10 @@ public class EditorController {
 
     private final UpdateService updateService = new UpdateService();
     private int untitledCount = 1;
-    private String currentTheme = THEME_LIGHT;
+    private String currentTheme = THEME_DARK;
+    private Stage mainStage;
+    private String micaStylesheetUrl;
+    private boolean micaEnabled = true;
     private Stage findStage;
     private TextField tfFind;
     private TextField tfReplace;
@@ -349,7 +355,7 @@ public class EditorController {
         ToggleGroup themeGroup = new ToggleGroup();
         miThemeLight.setToggleGroup(themeGroup);
         miThemeDark.setToggleGroup(themeGroup);
-        miThemeLight.setSelected(true);
+        miThemeDark.setSelected(true);
 
         ToggleGroup modeGroup = new ToggleGroup();
         miModeText.setToggleGroup(modeGroup);
@@ -541,6 +547,7 @@ public class EditorController {
 
         setupEditorInteractions(data);
         VirtualizedScrollPane<CodeArea> scroller = new VirtualizedScrollPane<>(area);
+        scroller.getStyleClass().add("editor-scroll");
         tab.setContent(scroller);
         tab.setOnCloseRequest(event -> {
             if (!confirmClose(tab)) {
@@ -1507,18 +1514,97 @@ public class EditorController {
         lblFindStatus.setText("Substituição concluída.");
     }
 
+    public void attachMainWindow(Stage stage, Scene scene) {
+        this.mainStage = stage;
+        if (scene != null) {
+            scene.setFill(Color.TRANSPARENT);
+        }
+        if (!WindowsBackdrop.isSupported()) {
+            if (miGlassStyle != null) {
+                miGlassStyle.setDisable(true);
+                miGlassStyle.setSelected(false);
+            }
+            if (root != null) {
+                root.getStyleClass().removeAll("mica-window", "mica-light", "glass-chrome");
+            }
+            return;
+        }
+        boolean enable = miGlassStyle == null || miGlassStyle.isSelected();
+        setMicaEnabled(enable);
+    }
+
+    private void setMicaEnabled(boolean enabled) {
+        micaEnabled = enabled;
+        if (root == null) {
+            return;
+        }
+        if (enabled) {
+            if (!root.getStyleClass().contains("mica-window")) {
+                root.getStyleClass().add("mica-window");
+            }
+            if (!root.getStyleClass().contains("glass-chrome")) {
+                root.getStyleClass().add("glass-chrome");
+            }
+            ensureMicaStylesheet();
+            syncMicaThemeClass();
+            applyWindowsBackdrop();
+        } else {
+            root.getStyleClass().removeAll("mica-window", "mica-light", "glass-chrome");
+            removeMicaStylesheet();
+            if (mainStage != null) {
+                WindowsBackdrop.apply(mainStage, isDarkTheme(), WindowsBackdrop.Backdrop.NONE);
+            }
+        }
+    }
+
+    private void ensureMicaStylesheet() {
+        if (root == null) {
+            return;
+        }
+        java.net.URL url = getClass().getResource(THEME_MICA);
+        if (url == null) {
+            return;
+        }
+        micaStylesheetUrl = url.toExternalForm();
+        if (!root.getStylesheets().contains(micaStylesheetUrl)) {
+            root.getStylesheets().add(micaStylesheetUrl);
+        }
+    }
+
+    private void removeMicaStylesheet() {
+        if (root != null && micaStylesheetUrl != null) {
+            root.getStylesheets().remove(micaStylesheetUrl);
+        }
+    }
+
+    private boolean isDarkTheme() {
+        return THEME_DARK.equals(currentTheme);
+    }
+
+    private void syncMicaThemeClass() {
+        if (root == null) {
+            return;
+        }
+        if (isDarkTheme()) {
+            root.getStyleClass().remove("mica-light");
+        } else if (!root.getStyleClass().contains("mica-light")) {
+            root.getStyleClass().add("mica-light");
+        }
+    }
+
+    private void applyWindowsBackdrop() {
+        if (mainStage == null || !micaEnabled) {
+            return;
+        }
+        WindowsBackdrop.apply(mainStage, isDarkTheme(), WindowsBackdrop.Backdrop.MICA);
+    }
+
     @FXML
     public void handleGlassStyle() {
         if (root == null || miGlassStyle == null) {
             return;
         }
-        if (miGlassStyle.isSelected()) {
-            if (!root.getStyleClass().contains("glass-chrome")) {
-                root.getStyleClass().add("glass-chrome");
-            }
-        } else {
-            root.getStyleClass().remove("glass-chrome");
-        }
+        setMicaEnabled(miGlassStyle.isSelected());
     }
 
     @FXML
@@ -1594,6 +1680,11 @@ public class EditorController {
         }
         root.getStylesheets().add(url.toExternalForm());
         currentTheme = theme;
+        if (micaEnabled) {
+            ensureMicaStylesheet();
+            syncMicaThemeClass();
+            applyWindowsBackdrop();
+        }
     }
 
     @FXML
