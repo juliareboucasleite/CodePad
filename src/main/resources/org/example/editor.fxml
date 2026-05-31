@@ -45,8 +45,8 @@
                     </Menu>
                     <Menu text="Modo">
                         <items>
-                            <RadioMenuItem fx:id="miModeText" text="Texto" onAction="#handleModeText" />
-                            <RadioMenuItem fx:id="miModeCode" text="Código" onAction="#handleModeCode" selected="true" />
+                            <RadioMenuItem fx:id="miModeText" text="Notas (texto)" onAction="#handleModeText" selected="true" />
+                            <RadioMenuItem fx:id="miModeCode" text="Código" onAction="#handleModeCode" />
                         </items>
                     </Menu>
                     <Menu text="Codificação">
@@ -81,7 +81,7 @@
                             <RadioMenuItem fx:id="miThemeDark" text="Tema Escuro" onAction="#handleThemeDark" />
                             <SeparatorMenuItem />
                             <CheckMenuItem fx:id="miGlassStyle" text="Estilo vidro (blur)" onAction="#handleGlassStyle" />
-                            <CheckMenuItem fx:id="miSidePanel" text="Painel lateral" onAction="#handleSidePanel" />
+                            <CheckMenuItem fx:id="miSidePanel" text="Calendário e planejamento" onAction="#handleSidePanel" selected="true" />
                             <SeparatorMenuItem />
                             <MenuItem fx:id="miZoomIn" text="Zoom +" onAction="#handleZoomIn" />
                             <MenuItem fx:id="miZoomOut" text="Zoom -" onAction="#handleZoomOut" />
@@ -90,7 +90,12 @@
                     </Menu>
                     <Menu text="Ajuda">
                         <items>
-                            <MenuItem fx:id="miAbout" text="Sobre" onAction="#handleAbout" />
+                            <MenuItem fx:id="miAbout" text="Sobre o CodePad" onAction="#handleAbout" />
+                            <MenuItem fx:id="miCheckUpdates" text="Verificar atualizações..." onAction="#handleCheckUpdates" />
+                            <MenuItem fx:id="miUpdateHelp" text="Como atualizar o app" onAction="#handleUpdateHelp" />
+                            <SeparatorMenuItem />
+                            <MenuItem fx:id="miDownloadApk" text="Baixar APK (Android)..." onAction="#handleDownloadApk" />
+                            <MenuItem fx:id="miOpenReleases" text="Ver todas as releases" onAction="#handleOpenReleases" />
                         </items>
                     </Menu>
                 </menus>
@@ -164,24 +169,26 @@
 
     <right>
         <VBox fx:id="sidePanel" styleClass="glass-panel side-panel" prefWidth="260" spacing="10"
-              visible="false" managed="false">
-            <Label text="Fontes e calendário" styleClass="panel-title" />
-            <Label text="Fonte (código)" styleClass="panel-label" />
-            <ComboBox fx:id="cbCodeFont" prefWidth="220" />
-            <Label text="Fonte (texto)" styleClass="panel-label" />
+              visible="true" managed="true">
+            <Label text="Planejamento" styleClass="panel-title" />
+            <Label text="Calendário" styleClass="panel-label" />
+            <DatePicker fx:id="datePicker" prefWidth="220" />
+            <Button text="Inserir data nas notas" onAction="#handleInsertDate" maxWidth="Infinity" />
+            <Button text="Inserir tarefa [ ]" onAction="#handleInsertTask" maxWidth="Infinity" />
+            <Label fx:id="lblSelectedDate" styleClass="panel-hint" wrapText="true" />
+            <Separator />
+            <Label text="Aparência das notas" styleClass="panel-title" />
+            <Label text="Fonte das notas" styleClass="panel-label" />
             <ComboBox fx:id="cbTextFont" prefWidth="220" />
-            <Label text="Tamanho da fonte" styleClass="panel-label" />
+            <Label text="Fonte do código" styleClass="panel-label" />
+            <ComboBox fx:id="cbCodeFont" prefWidth="220" />
+            <Label text="Tamanho" styleClass="panel-label" />
             <HBox spacing="8" alignment="CENTER_LEFT">
-                <Slider fx:id="sliderFontSize" min="10" max="24" value="13"
+                <Slider fx:id="sliderFontSize" min="10" max="24" value="14"
                         majorTickUnit="7" minorTickCount="0" showTickLabels="true"
                         blockIncrement="1" HBox.hgrow="ALWAYS" />
-                <Label fx:id="lblFontSizeValue" text="13 px" minWidth="52" />
+                <Label fx:id="lblFontSizeValue" text="14 px" minWidth="52" />
             </HBox>
-            <Separator />
-            <Label text="Calendário" styleClass="panel-title" />
-            <DatePicker fx:id="datePicker" prefWidth="220" />
-            <Button text="Inserir data no cursor" onAction="#handleInsertDate" maxWidth="Infinity" />
-            <Label fx:id="lblSelectedDate" styleClass="panel-hint" wrapText="true" />
         </VBox>
     </right>
 

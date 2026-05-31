@@ -3,6 +3,7 @@ package org.example.controllers;
 import javafx.application.Platform;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -19,6 +20,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.geometry.Point2D;
+import org.example.services.UpdateService;
 import org.fxmisc.flowless.VirtualizedScrollPane;
 import org.fxmisc.richtext.CodeArea;
 import org.fxmisc.richtext.LineNumberFactory;
@@ -30,9 +32,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -62,14 +61,11 @@ public class EditorController {
     private static final String THEME_LIGHT = "/org/example/editor-light.css";
     private static final String THEME_DARK = "/org/example/editor-dark.css";
     private static final String APP_NAME = "CodePad";
-    private static final String UPDATE_API = "https://api.github.com/repos/juliareboucasleite/CodePad/releases/latest";
-    private static final String RELEASES_URL = "https://github.com/juliareboucasleite/CodePad/releases";
-    private static final String RELEASE_ASSET_NAME = "CodePad.exe";
     private static final String DRAFTS_DIR = "CodePad";
     private static final String LEGACY_DRAFTS_DIR = "CodePad";
     private static final String DRAFTS_FILE = "drafts.dat";
     private static final int AUTO_SAVE_SECONDS = 30;
-    private static final double BASE_FONT_SIZE = 13.0;
+    private static final double BASE_FONT_SIZE = 14.0;
     private static final double MIN_FONT_SIZE = 10.0;
     private static final double MAX_FONT_SIZE = 24.0;
     private static final String DEFAULT_CODE_FONT = "JetBrains Mono";
@@ -80,6 +76,28 @@ public class EditorController {
             "Segoe UI", "Montserrat", "Poppins", "Tahoma", "Arial", "Verdana");
     private static final DateTimeFormatter INSERT_DATE_FORMAT =
             DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.forLanguageTag("pt-BR"));
+
+    private static final String HELP_UPDATE_TEXT = """
+            Como os usuários atualizam o CodePad
+
+            Publicação (você, desenvolvedora):
+            • Crie uma release no GitHub com a versão (ex.: v1.2.3).
+            • Anexe o instalador Windows (CodePad.exe) e/ou o APK (CodePad.apk).
+            • Os nomes dos arquivos devem conter .exe ou .apk para o app encontrá-los.
+
+            Windows (usuários com .exe):
+            • Ao abrir o app, ele verifica atualizações automaticamente.
+            • Ajuda → Verificar atualizações → Baixar → arquivo em Downloads\\CodePad.
+            • Execute o instalador; pode instalar por cima da versão anterior.
+
+            Android (usuários com .apk):
+            • Ajuda → Baixar APK (Android) ou use a release no GitHub.
+            • Instale o APK por cima do app antigo (mesma assinatura).
+            • Se necessário, permita instalar apps de fontes desconhecidas.
+
+            Sem internet ou falha no download:
+            • Ajuda → Ver todas as releases e baixe manualmente no navegador.
+            """;
     private static final byte[] BOM_UTF8 = new byte[]{(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
     private static final byte[] BOM_UTF16_LE = new byte[]{(byte) 0xFF, (byte) 0xFE};
     private static final byte[] BOM_UTF16_BE = new byte[]{(byte) 0xFE, (byte) 0xFF};
@@ -147,6 +165,15 @@ public class EditorController {
     private static final Pattern PATTERN_PY = buildPattern(KEYWORDS_PY,
             "#[^\\n]*",
             "\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*'");
+
+    /** Destaque leve para anotações, tarefas e datas no modo notas. */
+    private static final Pattern PATTERN_NOTES = Pattern.compile(
+            "(?m)(?<HEADING>^#{1,3}\\s+.+$)"
+                    + "|(?<CHECKBOX>\\[\\s?[xX]?\\s?\\])"
+                    + "|(?<NOTEDATE>\\b\\d{2}/\\d{2}/\\d{4}\\b)"
+                    + "|(?<TODO>\\b(?:TODO|FIXME|IMPORTANTE|URGENTE)\\b)"
+                    + "|(?<TAG>@[\\w]+)"
+    );
 
     private static final String CURSOR = "${cursor}";
     private static final Map<String, String> SNIPPETS = new LinkedHashMap<>();
@@ -268,7 +295,16 @@ public class EditorController {
 
     @FXML
     private MenuItem miAbout;
+    @FXML
+    private MenuItem miCheckUpdates;
+    @FXML
+    private MenuItem miUpdateHelp;
+    @FXML
+    private MenuItem miDownloadApk;
+    @FXML
+    private MenuItem miOpenReleases;
 
+    private final UpdateService updateService = new UpdateService();
     private int untitledCount = 1;
     private String currentTheme = THEME_LIGHT;
     private Stage findStage;
@@ -318,7 +354,7 @@ public class EditorController {
         ToggleGroup modeGroup = new ToggleGroup();
         miModeText.setToggleGroup(modeGroup);
         miModeCode.setToggleGroup(modeGroup);
-        miModeCode.setSelected(true);
+        miModeText.setSelected(true);
 
         ToggleGroup encodingGroup = new ToggleGroup();
         miEncodingAnsi.setToggleGroup(encodingGroup);
@@ -336,6 +372,11 @@ public class EditorController {
 
         setupShortcuts();
         setupSidePanel();
+        if (miSidePanel != null && sidePanel != null) {
+            miSidePanel.setSelected(true);
+            sidePanel.setVisible(true);
+            sidePanel.setManaged(true);
+        }
         appVersion = loadAppVersion();
         if (!loadDrafts()) {
             createNewTab();
@@ -406,7 +447,7 @@ public class EditorController {
             return;
         }
         if (date == null) {
-            lblSelectedDate.setText("Selecione uma data no calendário.");
+            lblSelectedDate.setText("Use o calendário para planejar o dia e inserir a data nas notas.");
             return;
         }
         String formatted = date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(
@@ -456,9 +497,6 @@ public class EditorController {
         tab.setUserData(data);
         tabPane.getTabs().add(tab);
         tabPane.getSelectionModel().select(tab);
-        if (miModeText != null && miModeText.isSelected()) {
-            setMode(data, false);
-        }
         updateStats();
         syncEncodingToggle(tab);
         syncLineEndingToggle(tab);
@@ -471,7 +509,8 @@ public class EditorController {
 
     private TabData buildCodeTab(Tab tab, String content) {
         CodeArea area = new CodeArea();
-        area.getStyleClass().add("code-area");
+        boolean codeMode = miModeCode != null && miModeCode.isSelected();
+        area.getStyleClass().add(codeMode ? "code-area" : "text-area");
         area.setParagraphGraphicFactory(LineNumberFactory.get(area));
 
         TabData data = new TabData();
@@ -480,13 +519,13 @@ public class EditorController {
         area.replaceText(content == null ? "" : content);
         data.loading = false;
         data.dirty = false;
-        data.codeMode = true;
+        data.codeMode = codeMode;
         data.language = "java";
-        data.pattern = PATTERN_JAVA;
+        data.pattern = codeMode ? PATTERN_JAVA : PATTERN_NOTES;
         data.encoding = defaultEncoding;
         data.lineEnding = defaultLineEnding;
 
-        applyEditorStyle(area, true);
+        applyEditorStyle(area, codeMode);
         attachHighlight(data);
 
         area.plainTextChanges().subscribe(ignore -> {
@@ -515,7 +554,7 @@ public class EditorController {
     }
 
     private void applyHighlight(TabData data) {
-        if (data == null || data.pattern == null) {
+        if (data == null || data.pattern == null || data.area == null) {
             return;
         }
         StyleSpans<Collection<String>> spans = computeHighlighting(data.area.getText(), data.pattern);
@@ -527,25 +566,80 @@ public class EditorController {
         int lastKwEnd = 0;
         StyleSpansBuilder<Collection<String>> spansBuilder = new StyleSpansBuilder<>();
         while (matcher.find()) {
-            String styleClass =
-                    matcher.group("KEYWORD") != null ? "keyword" :
-                            matcher.group("TYPE") != null ? "type" :
-                                    matcher.group("FUNCTION") != null ? "function" :
-                                            matcher.group("IDENT") != null ? "identifier" :
-                            matcher.group("PAREN") != null ? "paren" :
-                                    matcher.group("BRACE") != null ? "brace" :
-                                            matcher.group("BRACKET") != null ? "bracket" :
-                                                    matcher.group("SEMICOLON") != null ? "semicolon" :
-                                                            matcher.group("STRING") != null ? "string" :
-                                                                    matcher.group("COMMENT") != null ? "comment" :
-                                                                            matcher.group("NUMBER") != null ? "number" :
-                                                                                    null;
+            String styleClass = styleClassForMatch(matcher);
+            if (styleClass == null) {
+                continue;
+            }
             spansBuilder.add(Collections.emptyList(), matcher.start() - lastKwEnd);
             spansBuilder.add(Collections.singleton(styleClass), matcher.end() - matcher.start());
             lastKwEnd = matcher.end();
         }
         spansBuilder.add(Collections.emptyList(), text.length() - lastKwEnd);
         return spansBuilder.create();
+    }
+
+    private static String styleClassForMatch(Matcher matcher) {
+        if (matcher.group("COMMENT") != null) {
+            return "comment";
+        }
+        if (matcher.group("STRING") != null) {
+            return "string";
+        }
+        if (matcher.group("ANNOTATION") != null) {
+            return "annotation";
+        }
+        if (matcher.group("KEYWORD") != null) {
+            return "keyword";
+        }
+        if (matcher.group("CONSTANT") != null) {
+            return "constant";
+        }
+        if (matcher.group("TYPE") != null) {
+            return "type";
+        }
+        if (matcher.group("FUNCTION") != null) {
+            return "function";
+        }
+        if (matcher.group("VARIABLE") != null) {
+            return "variable";
+        }
+        if (matcher.group("NUMBER") != null) {
+            return "number";
+        }
+        if (matcher.group("PAREN") != null) {
+            return "paren";
+        }
+        if (matcher.group("BRACE") != null) {
+            return "brace";
+        }
+        if (matcher.group("BRACKET") != null) {
+            return "bracket";
+        }
+        if (matcher.group("SEMICOLON") != null) {
+            return "semicolon";
+        }
+        if (matcher.group("OPERATOR") != null) {
+            return "operator";
+        }
+        if (matcher.group("IDENT") != null) {
+            return "identifier";
+        }
+        if (matcher.group("HEADING") != null) {
+            return "note-heading";
+        }
+        if (matcher.group("CHECKBOX") != null) {
+            return "note-checkbox";
+        }
+        if (matcher.group("NOTEDATE") != null) {
+            return "note-date";
+        }
+        if (matcher.group("TODO") != null) {
+            return "note-todo";
+        }
+        if (matcher.group("TAG") != null) {
+            return "note-tag";
+        }
+        return null;
     }
 
     private CodeArea getCurrentArea() {
@@ -713,30 +807,20 @@ public class EditorController {
                 .subscribe(ignore -> applyHighlight(data));
     }
 
-    private void detachHighlight(TabData data) {
-        if (data.highlightSubscription != null) {
-            data.highlightSubscription.unsubscribe();
-            data.highlightSubscription = null;
-        }
-    }
-
-    private void clearStyles(CodeArea area) {
-        StyleSpansBuilder<Collection<String>> spansBuilder = new StyleSpansBuilder<>();
-        spansBuilder.add(Collections.emptyList(), area.getLength());
-        area.setStyleSpans(0, spansBuilder.create());
-    }
-
     private void setMode(TabData data, boolean codeMode) {
         data.codeMode = codeMode;
         data.area.getStyleClass().removeAll("code-area", "text-area");
         data.area.getStyleClass().add(codeMode ? "code-area" : "text-area");
         if (codeMode) {
-            attachHighlight(data);
-            applyHighlight(data);
+            if (data.language == null || data.language.isBlank()) {
+                data.language = "java";
+            }
+            data.pattern = patternForLanguage(data.language);
         } else {
-            detachHighlight(data);
-            clearStyles(data.area);
+            data.pattern = PATTERN_NOTES;
         }
+        attachHighlight(data);
+        applyHighlight(data);
         applyEditorStyle(data.area, codeMode);
         syncFontControls(tabPane.getSelectionModel().getSelectedItem());
     }
@@ -1010,18 +1094,20 @@ public class EditorController {
             String language = detectLanguage(file.toPath());
             if ("text".equals(language)) {
                 setMode(data, false);
+                if (miModeText != null) {
+                    miModeText.setSelected(true);
+                }
             } else {
                 data.language = language;
-                data.pattern = patternForLanguage(language);
-                applyHighlight(data);
+                setMode(data, true);
+                if (miModeCode != null) {
+                    miModeCode.setSelected(true);
+                }
             }
             tab.setUserData(data);
             tabPane.getTabs().add(tab);
             tabPane.getSelectionModel().select(tab);
             markDirty(tab, false);
-            if (miModeText != null && miModeText.isSelected()) {
-                setMode(data, false);
-            }
             updateStatus("Arquivo aberto: " + file.getName());
             updateStats();
             syncEncodingToggle(tab);
@@ -1456,11 +1542,34 @@ public class EditorController {
             updateStatus("Selecione uma data no calendário.");
             return;
         }
-        String text = date.format(INSERT_DATE_FORMAT);
+        String heading = date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy - EEEE",
+                Locale.forLanguageTag("pt-BR")));
+        insertNoteLine(area, "## " + heading + "\n");
+        updateStatus("Data inserida nas notas.");
+    }
+
+    @FXML
+    public void handleInsertTask() {
+        CodeArea area = getCurrentArea();
+        if (area == null) {
+            return;
+        }
+        insertNoteLine(area, "- [ ] ");
+        updateStatus("Tarefa inserida.");
+    }
+
+    private void insertNoteLine(CodeArea area, String text) {
         int pos = area.getCaretPosition();
-        area.insertText(pos, text);
-        area.moveTo(pos + text.length());
-        updateStatus("Data inserida: " + text);
+        String full = area.getText();
+        int lineStart = full.lastIndexOf('\n', Math.max(0, pos - 1)) + 1;
+        boolean atLineStart = pos == lineStart;
+        String toInsert = atLineStart ? text : "\n" + text;
+        area.insertText(pos, toInsert);
+        area.moveTo(pos + toInsert.length());
+        TabData data = getCurrentData();
+        if (data != null) {
+            applyHighlight(data);
+        }
     }
 
     @FXML
@@ -1489,10 +1598,76 @@ public class EditorController {
 
     @FXML
     public void handleAbout() {
+        UpdateService.Platform platform = UpdateService.detectPlatform();
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Sobre");
-        alert.setHeaderText(APP_NAME);
-        alert.setContentText("Editor simples com abas, destaque de sintaxe e temas.");
+        alert.setTitle("Sobre o CodePad");
+        alert.setHeaderText(APP_NAME + "  v" + appVersion);
+        alert.setContentText("""
+                Bloco de notas com calendário para planejar tarefas e o dia.
+                Modo Código com destaque de sintaxe (variáveis, funções, etc.).
+
+                Atualizações: %s
+                O app verifica novas releases no GitHub ao iniciar.
+
+                Repositório: github.com/juliareboucasleite/CodePad
+                """.formatted(UpdateService.platformLabel(platform)));
+        alert.showAndWait();
+    }
+
+    @FXML
+    public void handleCheckUpdates() {
+        runUpdateCheck(true);
+    }
+
+    @FXML
+    public void handleUpdateHelp() {
+        showScrollableHelp("Como atualizar", HELP_UPDATE_TEXT);
+    }
+
+    @FXML
+    public void handleOpenReleases() {
+        openInBrowser(UpdateService.GITHUB_RELEASES_URL);
+    }
+
+    @FXML
+    public void handleDownloadApk() {
+        new Thread(() -> {
+            try {
+                Optional<UpdateService.ReleaseInfo> release = updateService.fetchLatestApkRelease();
+                Platform.runLater(() -> {
+                    if (release.isEmpty()) {
+                        showError("APK não encontrado",
+                                "Não há arquivo .apk na última release.\n"
+                                        + "Publique CodePad.apk na release do GitHub.");
+                        return;
+                    }
+                    Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+                    confirm.setTitle("Baixar APK");
+                    confirm.setHeaderText("Release " + release.get().tag());
+                    confirm.setContentText("Arquivo: " + release.get().assetName() + "\n\n"
+                            + "O APK será salvo em Downloads\\CodePad.\n"
+                            + "Transfira para o celular e instale por cima da versão antiga.");
+                    confirm.getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
+                    if (confirm.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
+                        startDownload(release.get());
+                    }
+                });
+            } catch (Exception ex) {
+                Platform.runLater(() -> showError("Falha ao obter APK", ex.getMessage()));
+            }
+        }, "apk-download").start();
+    }
+
+    private void showScrollableHelp(String title, String body) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        TextArea area = new TextArea(body);
+        area.setEditable(false);
+        area.setWrapText(true);
+        area.setPrefWidth(520);
+        area.setPrefHeight(360);
+        alert.getDialogPane().setContent(area);
         alert.showAndWait();
     }
 
@@ -1506,22 +1681,22 @@ public class EditorController {
 
     private static Pattern buildPattern(String[] keywords, String commentRegex, String stringRegex) {
         String keywordPattern = "\\b(" + String.join("|", keywords) + ")\\b";
-        String typePattern = "\\b[A-Z][\\w]*\\b";
-        String functionPattern = "\\b[a-zA-Z_][\\w]*(?=\\s*\\()";
-        String identPattern = "\\b[a-zA-Z_][\\w]*\\b";
-        String numberPattern = "\\b\\d+(\\.\\d+)?\\b";
         return Pattern.compile(
-                "(?<KEYWORD>" + keywordPattern + ")"
-                        + "|(?<TYPE>" + typePattern + ")"
-                        + "|(?<FUNCTION>" + functionPattern + ")"
-                        + "|(?<IDENT>" + identPattern + ")"
+                "(?<COMMENT>" + commentRegex + ")"
+                        + "|(?<STRING>" + stringRegex + ")"
+                        + "|(?<ANNOTATION>@[A-Za-z][\\w]*)"
+                        + "|(?<KEYWORD>" + keywordPattern + ")"
+                        + "|(?<CONSTANT>\\b[A-Z][A-Z0-9_]*\\b)"
+                        + "|(?<TYPE>\\b[A-Z][\\w]*\\b)"
+                        + "|(?<FUNCTION>\\b[a-zA-Z_][\\w]*(?=\\s*\\())"
+                        + "|(?<VARIABLE>\\b[a-z][a-zA-Z0-9]*\\b)"
+                        + "|(?<NUMBER>\\b\\d+(\\.\\d+)?([eE][+-]?\\d+)?[dDfFlL]?\\b)"
                         + "|(?<PAREN>\\(|\\))"
                         + "|(?<BRACE>\\{|\\})"
                         + "|(?<BRACKET>\\[|\\])"
-                        + "|(?<SEMICOLON>;)"
-                        + "|(?<STRING>" + stringRegex + ")"
-                        + "|(?<COMMENT>" + commentRegex + ")"
-                        + "|(?<NUMBER>" + numberPattern + ")"
+                        + "|(?<SEMICOLON>[;,])"
+                        + "|(?<OPERATOR>[=+\\-*/%&|^<>!?:]+)"
+                        + "|(?<IDENT>\\b_[a-zA-Z][\\w]*\\b)"
         );
     }
 
@@ -1636,136 +1811,235 @@ public class EditorController {
     }
 
     private void checkForUpdatesAsync() {
+        runUpdateCheck(false);
+    }
+
+    private void runUpdateCheck(boolean manual) {
         new Thread(() -> {
             try {
-                HttpClient client = HttpClient.newBuilder()
-                        .connectTimeout(Duration.ofSeconds(6))
-                        .build();
-                HttpRequest req = HttpRequest.newBuilder()
-                        .uri(URI.create(UPDATE_API))
-                        .header("Accept", "application/vnd.github+json")
-                        .header("User-Agent", APP_NAME)
-                        .build();
-                HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());
-                if (res.statusCode() != 200) {
-                    return;
+                Optional<UpdateService.ReleaseInfo> update = updateService.findUpdate(appVersion);
+                Platform.runLater(() -> {
+                    if (update.isPresent()) {
+                        showUpdateDialog(update.get());
+                    } else if (manual) {
+                        showUpToDateMessage();
+                    }
+                });
+            } catch (Exception ex) {
+                if (manual) {
+                    Platform.runLater(() -> showError(
+                            "Não foi possível verificar atualizações", ex.getMessage()));
                 }
-                String body = res.body();
-                String tag = extractJsonString(body, "tag_name");
-                String url = extractJsonString(body, "html_url");
-                String downloadUrl = extractLatestDownloadUrl(body);
-                if (tag == null || url == null) {
-                    return;
-                }
-                if (compareVersions(tag, appVersion) > 0) {
-                    Platform.runLater(() -> showUpdateDialog(tag, url, downloadUrl));
-                }
-            } catch (Exception ignored) {
             }
-        }, "update-check").start();
+        }, manual ? "update-check-manual" : "update-check").start();
     }
 
-    private void showUpdateDialog(String latest, String releaseUrl, String downloadUrl) {
+    private void showUpToDateMessage() {
+        String latestTag = appVersion;
+        try {
+            Optional<UpdateService.ReleaseInfo> latest = updateService.fetchLatestRelease();
+            if (latest.isPresent()) {
+                latestTag = latest.get().tag();
+            }
+        } catch (Exception ignored) {
+        }
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Atualizações");
+        alert.setHeaderText("Você está na versão mais recente");
+        alert.setContentText("Versão instalada: " + appVersion
+                + "\nÚltima release no GitHub: " + latestTag);
+        alert.showAndWait();
+    }
+
+    private void showUpdateDialog(UpdateService.ReleaseInfo release) {
+        UpdateService.Platform platform = UpdateService.detectPlatform();
+        String assetName = release.assetName() != null ? release.assetName() : "atualização";
+        StringBuilder content = new StringBuilder();
+        content.append("Versão instalada: ").append(appVersion).append('\n');
+        content.append("Nova versão: ").append(release.tag()).append('\n');
+        content.append("Arquivo: ").append(assetName).append("\n\n");
+        content.append(updateStepsForPlatform(platform));
+        String notes = release.releaseNotes();
+        if (notes != null && !notes.isBlank()) {
+            String shortNotes = notes.length() > 500 ? notes.substring(0, 500) + "…" : notes;
+            content.append("\n\nNotas da release:\n").append(shortNotes.trim());
+        }
+
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle("Atualização disponível");
-        alert.setHeaderText("Nova versão " + latest + " disponível");
-        alert.setContentText("Sua versão atual: " + appVersion + "\nDeseja atualizar agora?");
-        ButtonType btnDownload = downloadUrl == null ? null : new ButtonType("Baixar e instalar");
-        ButtonType btnUpdate = new ButtonType("Atualizar");
+        alert.setHeaderText("Nova versão " + release.tag());
+        alert.setContentText(content.toString());
+        ButtonType btnDownload = new ButtonType("Baixar " + assetName);
+        ButtonType btnBrowser = new ButtonType("Abrir no GitHub");
         ButtonType btnLater = new ButtonType("Mais tarde", ButtonBar.ButtonData.CANCEL_CLOSE);
-        if (btnDownload != null) {
-            alert.getButtonTypes().setAll(btnDownload, btnUpdate, btnLater);
-        } else {
-            alert.getButtonTypes().setAll(btnUpdate, btnLater);
-        }
+        alert.getButtonTypes().setAll(btnDownload, btnBrowser, btnLater);
         Optional<ButtonType> result = alert.showAndWait();
-        if (result.isPresent() && result.get() == btnDownload) {
-            try {
-                java.awt.Desktop.getDesktop().browse(URI.create(downloadUrl));
-            } catch (Exception ex) {
-                showError("Falha ao abrir o navegador", ex.getMessage());
-            }
-        } else if (result.isPresent() && result.get() == btnUpdate) {
-            try {
-                java.awt.Desktop.getDesktop().browse(URI.create(releaseUrl));
-            } catch (Exception ex) {
-                showError("Falha ao abrir o navegador", ex.getMessage());
-            }
+        if (result.isEmpty()) {
+            return;
+        }
+        if (result.get() == btnDownload) {
+            startDownload(release);
+        } else if (result.get() == btnBrowser) {
+            openInBrowser(release.releaseUrl());
         }
     }
 
-    private int compareVersions(String a, String b) {
-        List<Integer> va = parseVersionNumbers(a);
-        List<Integer> vb = parseVersionNumbers(b);
-        int max = Math.max(va.size(), vb.size());
-        for (int i = 0; i < max; i++) {
-            int ai = i < va.size() ? va.get(i) : 0;
-            int bi = i < vb.size() ? vb.get(i) : 0;
-            if (ai != bi) {
-                return Integer.compare(ai, bi);
-            }
-        }
-        return 0;
+    private static String updateStepsForPlatform(UpdateService.Platform platform) {
+        return switch (platform) {
+            case ANDROID -> """
+                    O APK será baixado para Downloads/CodePad.
+                    Abra o arquivo no celular e instale por cima do app antigo.""";
+            case WINDOWS -> """
+                    O instalador será salvo em Downloads\\CodePad.
+                    Execute o .exe para atualizar (pode instalar por cima).""";
+            case MAC -> """
+                    O pacote será salvo em Downloads/CodePad.
+                    Abra o .dmg ou .pkg e siga o assistente.""";
+            case LINUX -> """
+                    O pacote será salvo em Downloads/CodePad.
+                    Instale o .deb ou execute o AppImage.""";
+            case UNKNOWN -> """
+                    O arquivo será salvo em Downloads/CodePad.
+                    Siga as instruções da release no GitHub.""";
+        };
     }
 
-    private List<Integer> parseVersionNumbers(String v) {
-        List<Integer> out = new ArrayList<>();
-        if (v == null) {
-            return out;
-        }
-        Matcher m = Pattern.compile("\\d+").matcher(v);
-        while (m.find()) {
-            try {
-                out.add(Integer.parseInt(m.group()));
-            } catch (NumberFormatException ignored) {
+    private void startDownload(UpdateService.ReleaseInfo release) {
+        Dialog<ButtonType> progressDialog = new Dialog<>();
+        progressDialog.setTitle("Baixando atualização");
+        progressDialog.setHeaderText("Baixando " + release.assetName());
+        ProgressBar progressBar = new ProgressBar(0);
+        progressBar.setPrefWidth(360);
+        Label statusLabel = new Label("Iniciando…");
+        VBox box = new VBox(10, statusLabel, progressBar);
+        box.setStyle("-fx-padding: 12;");
+        progressDialog.getDialogPane().setContent(box);
+        ButtonType cancel = new ButtonType("Cancelar", ButtonBar.ButtonData.CANCEL_CLOSE);
+        progressDialog.getDialogPane().getButtonTypes().add(cancel);
+
+        Task<Path> task = new Task<>() {
+            @Override
+            protected Path call() throws Exception {
+                Path dir = updateService.defaultDownloadDir();
+                return updateService.downloadAsset(release, dir, (downloaded, total) -> {
+                    if (total > 0) {
+                        updateProgress(downloaded, total);
+                        updateMessage(formatBytes(downloaded) + " / " + formatBytes(total));
+                    } else {
+                        updateMessage(formatBytes(downloaded) + " baixados");
+                    }
+                });
             }
-        }
-        return out;
+        };
+        statusLabel.textProperty().bind(task.messageProperty());
+        progressBar.progressProperty().bind(task.progressProperty());
+
+        task.setOnSucceeded(event -> {
+            progressDialog.close();
+            Path path = task.getValue();
+            if (path != null) {
+                showDownloadCompleteDialog(release, path);
+            }
+        });
+        task.setOnFailed(event -> {
+            progressDialog.close();
+            Throwable ex = task.getException();
+            showError("Falha no download",
+                    ex == null ? "Erro desconhecido." : ex.getMessage());
+        });
+        task.setOnCancelled(event -> progressDialog.close());
+
+        progressDialog.setOnCloseRequest(event -> task.cancel());
+        Button cancelButton = (Button) progressDialog.getDialogPane().lookupButton(cancel);
+        cancelButton.setOnAction(event -> {
+            task.cancel();
+            progressDialog.close();
+        });
+
+        Thread downloadThread = new Thread(task, "release-download");
+        downloadThread.setDaemon(true);
+        downloadThread.start();
+        progressDialog.show();
     }
 
-    private String extractJsonString(String json, String key) {
-        if (json == null || key == null) {
-            return null;
+    private void showDownloadCompleteDialog(UpdateService.ReleaseInfo release, Path path) {
+        String fileName = path.getFileName().toString().toLowerCase(Locale.ROOT);
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Download concluído");
+        alert.setHeaderText(release.tag() + " — " + release.assetName());
+        alert.setContentText("Salvo em:\n" + path.toAbsolutePath());
+        ButtonType openFolder = new ButtonType("Abrir pasta");
+        ButtonType runInstaller = null;
+        if (fileName.endsWith(".exe")) {
+            runInstaller = new ButtonType("Executar instalador");
+        } else if (fileName.endsWith(".apk")) {
+            runInstaller = new ButtonType("Abrir arquivo");
         }
-        Pattern p = Pattern.compile("\"" + Pattern.quote(key) + "\"\\s*:\\s*\"(.*?)\"");
-        Matcher m = p.matcher(json);
-        if (!m.find()) {
-            return null;
+        if (runInstaller != null) {
+            alert.getButtonTypes().setAll(runInstaller, openFolder, ButtonType.OK);
+        } else {
+            alert.getButtonTypes().setAll(openFolder, ButtonType.OK);
         }
-        return unescapeJsonString(m.group(1));
+        Optional<ButtonType> choice = alert.showAndWait();
+        if (choice.isEmpty()) {
+            return;
+        }
+        ButtonType selected = choice.get();
+        if (selected == openFolder) {
+            openFolder(path.getParent());
+        } else if (runInstaller != null && selected == runInstaller) {
+            runDownloadedFile(path);
+        }
+        updateStatus("Atualização baixada: " + path.getFileName());
     }
 
-    private String extractLatestDownloadUrl(String json) {
-        if (json == null) {
-            return null;
-        }
-        Pattern p = Pattern.compile("\"browser_download_url\"\\s*:\\s*\"(.*?)\"");
-        Matcher m = p.matcher(json);
-        List<String> urls = new ArrayList<>();
-        while (m.find()) {
-            urls.add(unescapeJsonString(m.group(1)));
-        }
-        if (urls.isEmpty()) {
-            return null;
-        }
-        for (String u : urls) {
-            if (u == null) {
-                continue;
+    private void runDownloadedFile(Path path) {
+        try {
+            if (!Files.isRegularFile(path)) {
+                showError("Arquivo não encontrado", path.toString());
+                return;
             }
-            String lu = u.toLowerCase();
-            String target = RELEASE_ASSET_NAME.toLowerCase();
-            if (lu.endsWith("/" + target) || lu.endsWith(target)) {
-                return u;
+            if (UpdateService.detectPlatform() == UpdateService.Platform.WINDOWS
+                    && path.toString().toLowerCase(Locale.ROOT).endsWith(".exe")) {
+                new ProcessBuilder(path.toAbsolutePath().toString()).start();
+                return;
             }
+            if (java.awt.Desktop.isDesktopSupported()) {
+                java.awt.Desktop.getDesktop().open(path.toFile());
+            }
+        } catch (IOException ex) {
+            showError("Não foi possível abrir o arquivo", ex.getMessage());
         }
-        return null;
     }
 
-    private String unescapeJsonString(String s) {
-        if (s == null) {
-            return null;
+    private void openFolder(Path folder) {
+        try {
+            if (java.awt.Desktop.isDesktopSupported()) {
+                java.awt.Desktop.getDesktop().open(folder.toFile());
+            }
+        } catch (IOException ex) {
+            showError("Não foi possível abrir a pasta", ex.getMessage());
         }
-        return s.replace("\\/", "/").replace("\\\"", "\"");
+    }
+
+    private void openInBrowser(String url) {
+        try {
+            if (java.awt.Desktop.isDesktopSupported()) {
+                java.awt.Desktop.getDesktop().browse(URI.create(url));
+            }
+        } catch (Exception ex) {
+            showError("Não foi possível abrir o navegador", ex.getMessage());
+        }
+    }
+
+    private static String formatBytes(long bytes) {
+        if (bytes < 1024) {
+            return bytes + " B";
+        }
+        if (bytes < 1024 * 1024) {
+            return String.format(Locale.ROOT, "%.1f KB", bytes / 1024.0);
+        }
+        return String.format(Locale.ROOT, "%.1f MB", bytes / (1024.0 * 1024.0));
     }
 
     private Path getDraftFile() {

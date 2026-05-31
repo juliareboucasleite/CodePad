@@ -12,7 +12,7 @@ public class Main extends Application {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("editor.fxml"));
 
         Scene scene = new Scene(loader.load());
-        stage.setTitle("CodePad");
+        stage.setTitle("CodePad — Notas e planejamento");
         stage.getIcons().add(new Image(getClass().getResourceAsStream("codePadLogo.png")));
         stage.setScene(scene);
         var controller = loader.getController();

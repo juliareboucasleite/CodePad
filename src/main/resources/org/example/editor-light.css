@@ -212,8 +212,27 @@
     -fx-fill: #b45309;
 }
 
+.variable {
+    -fx-fill: #7c3aed;
+    -fx-font-weight: 500;
+}
+
+.constant {
+    -fx-fill: #be185d;
+    -fx-font-weight: 600;
+}
+
+.operator {
+    -fx-fill: #64748b;
+}
+
+.annotation {
+    -fx-fill: #c2410c;
+    -fx-font-style: italic;
+}
+
 .identifier {
-    -fx-fill: #0f172a;
+    -fx-fill: #475569;
 }
 
 .comment {
@@ -235,4 +254,27 @@
 
 .semicolon {
     -fx-fill: #9aa4b2;
+}
+
+.note-heading {
+    -fx-fill: #0f766e;
+    -fx-font-weight: bold;
+}
+
+.note-checkbox {
+    -fx-fill: #059669;
+    -fx-font-weight: bold;
+}
+
+.note-date {
+    -fx-fill: #2563eb;
+}
+
+.note-todo {
+    -fx-fill: #dc2626;
+    -fx-font-weight: bold;
+}
+
+.note-tag {
+    -fx-fill: #7c3aed;
 }
